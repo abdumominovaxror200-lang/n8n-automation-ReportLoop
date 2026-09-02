@@ -138,3 +138,23 @@ Offline renderer verification:
 ```powershell
 node --test code-nodes/report_render.test.js
 ```
+
+## Prompt #4 — delivery + alert
+
+The build workflow now prepares delivery after rendering. Empty delivery destinations are
+skipped deterministically: `recipients` controls Gmail and `telegram_chat_id` controls Telegram.
+Telegram report text is capped at 4,096 characters and ends with an ellipsis when truncated.
+
+After importing the workflow into n8n:
+
+- Enable the Gmail API in the ReportLoop Google Cloud project. On **Send Gmail Report**, create
+  or select a **Gmail OAuth2 API** credential and use **Sign in with Google**.
+- Create a Telegram bot, then select a **Telegram API** credential containing its bot token on
+  **Send Telegram Report** and **Send Failure Alert**.
+- Fill `recipients` with comma-separated email addresses and `telegram_chat_id` with the target
+  chat ID in the Clients sheet or the standalone Set node. A blank value or Telegram chat `0`
+  disables that channel.
+
+No credential object is baked into the exported workflow. Failure outputs are routed to the
+single Telegram alert node. Its destination uses the current client’s `telegram_chat_id`; clients
+that need alerts must therefore provide a valid bot-accessible chat ID.

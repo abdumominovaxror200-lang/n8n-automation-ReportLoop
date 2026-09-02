@@ -71,8 +71,41 @@ test("report workflow embeds the deterministic renderer after the sheet append",
   );
   assert.ok(
     workflow.connections["Render HTML + Text Report"].main[1]
-      .some((connection) => connection.node === "TODO: connect wf_alert"),
+      .some((connection) => connection.node === "Send Failure Alert"),
   );
+});
+
+test("delivery workflow embeds its pure helper and gates both channels", async () => {
+  const [rawWorkflow, rawDelivery] = await Promise.all([
+    readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8"),
+    readFile(new URL("../code-nodes/delivery.js", import.meta.url), "utf8"),
+  ]);
+  const workflow = JSON.parse(rawWorkflow);
+  const normalizeLines = (value) => value.replace(/\r\n/g, "\n").trim();
+  const delivery = workflow.nodes.find((node) => node.name === "Prepare Delivery");
+  assert.equal(normalizeLines(delivery.parameters.jsCode), normalizeLines(rawDelivery));
+
+  const gmail = workflow.nodes.find((node) => node.name === "Send Gmail Report");
+  assert.equal(gmail.type, "n8n-nodes-base.gmail");
+  assert.equal(gmail.parameters.emailType, "html");
+  assert.match(gmail.parameters.sendTo, /gmail\.to/);
+  assert.match(gmail.parameters.message, /gmail\.html/);
+
+  const telegram = workflow.nodes.find((node) => node.name === "Send Telegram Report");
+  assert.equal(telegram.type, "n8n-nodes-base.telegram");
+  assert.equal(telegram.parameters.operation, "sendMessage");
+  assert.match(telegram.parameters.chatId, /telegram\.chatId/);
+  assert.match(telegram.parameters.text, /telegram\.text/);
+
+  for (const name of ["Gmail Enabled?", "Telegram Enabled?", "Send Failure Alert"]) {
+    assert.ok(workflow.nodes.some((node) => node.name === name), `${name} is required`);
+  }
+  assert.ok(workflow.connections["Render HTML + Text Report"].main[0]
+    .some((connection) => connection.node === "Prepare Delivery"));
+  assert.ok(workflow.connections["Send Gmail Report"].main[0]
+    .some((connection) => connection.node === "Restore Delivery After Gmail"));
+  assert.ok(workflow.connections["Restore Delivery After Gmail"].main[0]
+    .some((connection) => connection.node === "Telegram Enabled?"));
 });
 
 test("imported workflow has no baked credentials and uses valid JSON body forms", async () => {
@@ -108,9 +141,11 @@ test("GA4 slice creates Reports headers when needed and appends to the configure
   const append = workflow.nodes.find((node) => node.name === "Append Reports Row");
   assert.equal(append.parameters.documentId.value, "1vV9FLBLTwp05lwBfQRIrV8rrVe6K0IqPbh1obQiDNWI");
   assert.equal(append.parameters.sheetName.value, "Reports");
-  for (const todo of ["TODO: connect Meta", "TODO: connect Google Ads", "TODO: connect Slides Render", "TODO: connect Gmail", "TODO: connect Telegram"]) {
+  for (const todo of ["TODO: connect Meta", "TODO: connect Google Ads", "TODO: connect Slides Render"]) {
     assert.equal(workflow.nodes.find((node) => node.name === todo)?.type, "n8n-nodes-base.noOp");
   }
+  assert.equal(workflow.nodes.some((node) => node.name === "TODO: connect Gmail"), false);
+  assert.equal(workflow.nodes.some((node) => node.name === "TODO: connect Telegram"), false);
 });
 
 test("scheduler evaluates each enabled client's cron in its timezone", async () => {
@@ -137,7 +172,7 @@ test("credential-bound nodes remain visibly marked TODO", async () => {
   }
 });
 
-test("build workflow routes every configured error output to wf_alert", async () => {
+test("build workflow routes every configured error output to the Telegram alert", async () => {
   const raw = await readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8");
   const workflow = JSON.parse(raw);
   const guarded = workflow.nodes.filter((node) => node.onError === "continueErrorOutput");
@@ -145,8 +180,12 @@ test("build workflow routes every configured error output to wf_alert", async ()
   for (const node of guarded) {
     const errorOutput = workflow.connections[node.name]?.main?.[1] ?? [];
     assert.ok(
-      errorOutput.some((connection) => connection.node === "TODO: connect wf_alert"),
-      `${node.name} must route errors to wf_alert`,
+      errorOutput.some((connection) => connection.node === "Send Failure Alert"),
+      `${node.name} must route errors to Send Failure Alert`,
     );
   }
+  const alert = workflow.nodes.find((node) => node.name === "Send Failure Alert");
+  assert.equal(alert.type, "n8n-nodes-base.telegram");
+  assert.match(alert.parameters.text, /ReportLoop/);
+  assert.match(alert.parameters.text, /error\?\.message/);
 });

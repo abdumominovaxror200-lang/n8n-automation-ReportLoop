@@ -45,6 +45,24 @@
               "name": "report_name",
               "value": "GA4 30-day Report",
               "type": "string"
+            },
+            {
+              "id": "sample-agency",
+              "name": "agency",
+              "value": "ReportLoop Demo",
+              "type": "string"
+            },
+            {
+              "id": "sample-recipients",
+              "name": "recipients",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "sample-telegram-chat",
+              "name": "telegram_chat_id",
+              "value": "",
+              "type": "string"
             }
           ]
         },
@@ -363,18 +381,6 @@
     },
     {
       "parameters": {},
-      "id": "alert-noop",
-      "name": "TODO: connect wf_alert",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1160,
-        300
-      ],
-      "notes": "Replace this NoOp with Execute Workflow -> wf_alert after alert credentials are connected."
-    },
-    {
-      "parameters": {},
       "id": "todo-meta",
       "name": "TODO: connect Meta",
       "type": "n8n-nodes-base.noOp",
@@ -407,26 +413,162 @@
       ]
     },
     {
-      "parameters": {},
-      "id": "todo-gmail",
-      "name": "TODO: connect Gmail",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "jsCode": "'use strict';\n\nconst TELEGRAM_LIMIT = 4096;\n\nfunction recipients(value) {\n  const entries = Array.isArray(value) ? value : String(value ?? '').split(',');\n  return [...new Set(entries.map((entry) => String(entry).trim()).filter(Boolean))];\n}\n\nfunction telegramText(value) {\n  const text = String(value ?? '');\n  if (text.length <= TELEGRAM_LIMIT) return text;\n  return `${text.slice(0, TELEGRAM_LIMIT - 1)}…`;\n}\n\nfunction buildDelivery(item) {\n  if (!item || typeof item !== 'object' || Array.isArray(item)) {\n    throw new TypeError('Delivery item must be an object.');\n  }\n  const to = recipients(item.recipients);\n  const rawChatId = String(item.telegram_chat_id ?? '').trim();\n  const chatId = rawChatId && rawChatId !== '0' ? rawChatId : '';\n  return {\n    gmail: {\n      send: to.length > 0,\n      to,\n      subject: String(item.subject ?? ''),\n      html: String(item.html ?? ''),\n    },\n    telegram: {\n      send: Boolean(chatId),\n      chatId,\n      text: telegramText(item.text),\n    },\n  };\n}\n\nif (typeof module !== 'undefined' && module.exports) {\n  module.exports = { buildDelivery, TELEGRAM_LIMIT };\n}\nif (typeof $input !== 'undefined') {\n  const rendered = $input.first().json;\n  const client = $('Prepare Client and Periods').first().json;\n  const item = {\n    ...rendered,\n    recipients: rendered.recipients ?? client.recipients,\n    telegram_chat_id: rendered.telegram_chat_id ?? client.telegram_chat_id,\n    client_id: rendered.client_id ?? client.client_id,\n  };\n  return [{ json: { ...item, ...buildDelivery(item) } }];\n}\n"
+      },
+      "id": "prepare-delivery",
+      "name": "Prepare Delivery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        500,
-        300
+        1820,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "gmail-enabled",
+              "leftValue": "={{ $json.gmail.send }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "gmail-enabled",
+      "name": "Gmail Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2040,
+        0
       ]
     },
     {
-      "parameters": {},
-      "id": "todo-telegram",
-      "name": "TODO: connect Telegram",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "sendTo": "={{ $json.gmail.to.join(', ') }}",
+        "subject": "={{ $json.gmail.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.gmail.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "send-gmail-report",
+      "name": "Send Gmail Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
       "position": [
-        720,
-        300
+        2260,
+        -100
+      ],
+      "notes": "TODO: connect a Gmail OAuth2 API credential after import.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "telegram-enabled",
+              "leftValue": "={{ $json.telegram.send }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "telegram-enabled",
+      "name": "Telegram Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2480,
+        0
       ]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $json.telegram.chatId }}",
+        "text": "={{ $json.telegram.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "send-telegram-report",
+      "name": "Send Telegram Report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2700,
+        0
+      ],
+      "notes": "TODO: connect a Telegram API credential after import.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $json.telegram_chat_id || $('Prepare Client and Periods').first().json.telegram_chat_id || '' }}",
+        "text": "={{ ('⚠️ ReportLoop: ' + ($json.client_id || $('Prepare Client and Periods').first().json.client_id || 'unknown client') + ' — ' + ($json.error?.node?.name || $json.error?.node || $json.node?.name || 'unknown node') + ' — ' + ($json.error?.message || $json.message || 'Unknown error')).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "send-failure-alert",
+      "name": "Send Failure Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2040,
+        300
+      ],
+      "notes": "TODO: connect a Telegram API credential after import. Alerts use the current client chat ID."
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:$('Prepare Delivery').first().json}];"
+      },
+      "id": "restore-delivery-after-gmail",
+      "name": "Restore Delivery After Gmail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        -100
+      ],
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -453,7 +595,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -482,7 +624,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -500,7 +642,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -518,7 +660,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -536,7 +678,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -554,7 +696,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -572,7 +714,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -608,7 +750,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -644,7 +786,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -662,7 +804,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -680,7 +822,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -698,7 +840,7 @@
         ],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
@@ -707,10 +849,112 @@
     },
     "Render HTML + Text Report": {
       "main": [
+        [
+          {
+            "node": "Prepare Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Delivery": {
+      "main": [
+        [
+          {
+            "node": "Gmail Enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Enabled?": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Gmail Report": {
+      "main": [
+        [
+          {
+            "node": "Restore Delivery After Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Enabled?": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send Telegram Report": {
+      "main": [
         [],
         [
           {
-            "node": "TODO: connect wf_alert",
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Delivery After Gmail": {
+      "main": [
+        [
+          {
+            "node": "Telegram Enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Alert",
             "type": "main",
             "index": 0
           }
