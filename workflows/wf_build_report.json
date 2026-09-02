@@ -1,123 +1,193 @@
 {
-  "name": "Agency Reporting - Build Report",
+  "name": "Agency Reporting - GA4 to Reports",
   "nodes": [
     {
-      "parameters": {
-        "inputSource": "passthrough"
-      },
-      "id": "input",
-      "name": "Client Input",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
+      "parameters": {},
+      "id": "manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
       "position": [
-        -1200,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "url": "TODO: connect GA4 Data API",
-        "options": {}
-      },
-      "id": "ga4",
-      "name": "TODO: connect GA4",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -980,
-        -300
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "url": "TODO: connect Meta Marketing API",
-        "options": {}
-      },
-      "id": "meta",
-      "name": "TODO: connect Meta",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -980,
-        -100
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "url": "TODO: connect Google Ads API",
-        "options": {}
-      },
-      "id": "gads",
-      "name": "TODO: connect Google Ads",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -980,
-        100
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "url": "={{ $json.extra_sheet_url || 'TODO: connect extra source' }}",
-        "options": {}
-      },
-      "id": "extra",
-      "name": "TODO: connect Extra Source",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -980,
-        300
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "options": {}
-      },
-      "id": "merge1",
-      "name": "Merge GA4 and Meta",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
-      "position": [
-        -760,
+        -1320,
         -180
       ]
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "sample-client-id",
+              "name": "client_id",
+              "value": "demo-ga4",
+              "type": "string"
+            },
+            {
+              "id": "sample-property",
+              "name": "ga4_property_id",
+              "value": "properties/123456789",
+              "type": "string"
+            },
+            {
+              "id": "sample-kpis",
+              "name": "kpis",
+              "value": "sessions,users,new_users,conversions",
+              "type": "string"
+            },
+            {
+              "id": "sample-timezone",
+              "name": "timezone",
+              "value": "Asia/Tashkent",
+              "type": "string"
+            },
+            {
+              "id": "sample-report",
+              "name": "report_name",
+              "value": "GA4 30-day Report",
+              "type": "string"
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "merge2",
-      "name": "Merge Ads and Extra",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
+      "id": "sample-client",
+      "name": "Sample Client - Edit GA4 Property",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        -760,
-        180
+        -1100,
+        -180
+      ],
+      "notes": "Replace the sample GA4 property ID before a standalone run.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "client-input",
+      "name": "Client Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1100,
+        80
       ]
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
+        "jsCode": "const client = $input.first().json;\nconst timezone = client.timezone || 'UTC';\nconst parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {timeZone: timezone, year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date()).map(({type,value}) => [type,value]));\nconst localToday = new Date(Date.UTC(Number(parts.year), Number(parts.month)-1, Number(parts.day)));\nconst iso = (date) => date.toISOString().slice(0,10);\nconst shift = (date, days) => { const copy = new Date(date); copy.setUTCDate(copy.getUTCDate()+days); return copy; };\nconst currentEnd = shift(localToday,-1);\nconst currentStart = shift(currentEnd,-29);\nconst previousEnd = shift(currentStart,-1);\nconst previousStart = shift(previousEnd,-29);\nreturn [{json:{...client, kpis:Array.isArray(client.kpis)?client.kpis:String(client.kpis||'').split(',').map(k=>k.trim()).filter(Boolean), period:{current:{start:iso(currentStart),end:iso(currentEnd)},previous:{start:iso(previousStart),end:iso(previousEnd)}}}}];"
+      },
+      "id": "prepare",
+      "name": "Prepare Client and Periods",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/1vV9FLBLTwp05lwBfQRIrV8rrVe6K0IqPbh1obQiDNWI/values/Reports!1:1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
         "options": {}
       },
-      "id": "merge3",
-      "name": "Merge All Sources",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
+      "id": "check-reports-headers",
+      "name": "Check Reports Headers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        -540,
-        0
+        720,
+        -80
+      ],
+      "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TODO_SELECT_IN_N8N",
+          "name": "Google Sheets OAuth2 API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "reports-headers-exist",
+              "leftValue": "={{ Array.isArray($json.values) && Array.isArray($json.values[0]) && $json.values[0].length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "reports-headers-exist",
+      "name": "Reports Headers Exist?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        940,
+        -80
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://analyticsdata.googleapis.com/v1beta/' + ($json.ga4_property_id.startsWith('properties/') ? $json.ga4_property_id : 'properties/' + $json.ga4_property_id) + ':runReport' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {dateRanges:[{startDate:$json.period.previous.start,endDate:$json.period.previous.end,name:'previous'},{startDate:$json.period.current.start,endDate:$json.period.current.end,name:'current'}],dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'totalUsers'},{name:'newUsers'},{name:'conversions'}],keepEmptyRows:true} }}",
+        "options": {}
+      },
+      "id": "ga4-pull",
+      "name": "GA4 - Run Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -650,
+        0
+      ],
+      "notes": "TODO: connect Google Analytics OAuth2 API or generic Google OAuth2 API with analytics.readonly scope.",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "TODO_SELECT_IN_N8N",
+          "name": "Google Analytics OAuth2 API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "'use strict';\n\nconst METRIC_NAMES = Object.freeze({\n  sessions: 'sessions',\n  totalUsers: 'users',\n  newUsers: 'new_users',\n  conversions: 'conversions',\n});\n\nfunction isoDate(value) {\n  const text = String(value ?? '');\n  if (!/^\\d{8}$/.test(text)) throw new TypeError(`Invalid GA4 date '${text}'; expected YYYYMMDD.`);\n  const iso = `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;\n  if (Number.isNaN(Date.parse(`${iso}T00:00:00Z`))) throw new TypeError(`Invalid GA4 date '${text}'.`);\n  return iso;\n}\n\nfunction numberValue(value, metric, rowIndex) {\n  const parsed = Number(value);\n  if (!Number.isFinite(parsed)) {\n    throw new TypeError(`GA4 row ${rowIndex + 1} has a non-numeric ${metric} value.`);\n  }\n  return parsed;\n}\n\nfunction mapGa4RunReport(response) {\n  if (!response || typeof response !== 'object' || Array.isArray(response)) {\n    throw new TypeError('GA4 runReport response must be an object.');\n  }\n  const dimensionHeaders = (response.dimensionHeaders ?? []).map((header) => header.name);\n  const dateIndex = dimensionHeaders.indexOf('date');\n  if (dateIndex < 0) throw new TypeError(\"GA4 response is missing the 'date' dimension.\");\n\n  const metricHeaders = (response.metricHeaders ?? []).map((header) => header.name);\n  for (const required of Object.keys(METRIC_NAMES)) {\n    if (!metricHeaders.includes(required)) throw new TypeError(`GA4 response is missing metric '${required}'.`);\n  }\n\n  const rows = (response.rows ?? []).map((row, rowIndex) => {\n    const mapped = { date: isoDate(row.dimensionValues?.[dateIndex]?.value) };\n    metricHeaders.forEach((metric, metricIndex) => {\n      const target = METRIC_NAMES[metric];\n      if (target) mapped[target] = numberValue(row.metricValues?.[metricIndex]?.value, metric, rowIndex);\n    });\n    return mapped;\n  });\n  rows.sort((left, right) => left.date.localeCompare(right.date));\n  return { rows };\n}\n\nif (typeof module !== 'undefined' && module.exports) module.exports = { mapGa4RunReport };\nif (typeof $input !== 'undefined') {\n  const client = $('Prepare Client and Periods').first().json;\n  return [{ json: { ...client, ga4: mapGa4RunReport($input.first().json), meta: null, gads: null, extra: null } }];\n}\n"
+      },
+      "id": "ga4-map",
+      "name": "Map GA4 Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        0
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -128,112 +198,147 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -320,
+        -190,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const report=$input.first().json;\nconst client=$('Prepare Client and Periods').first().json;\nconst row={timestamp:new Date().toISOString(),client_id:client.client_id,period_label:report.period_label};\nfor(const metric of report.metrics){row[`${metric.key}_current`]=metric.current;row[`${metric.key}_previous`]=metric.previous;row[`${metric.key}_delta_pct`]=metric.delta_pct;}\nrow.data_quality=JSON.stringify(report.data_quality);\nreturn [{json:row}];"
+      },
+      "id": "report-row",
+      "name": "Build Reports Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/1vV9FLBLTwp05lwBfQRIrV8rrVe6K0IqPbh1obQiDNWI?fields=sheets.properties.title",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "check-reports",
+      "name": "Check Reports Tab",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        270,
+        0
+      ],
+      "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TODO_SELECT_IN_N8N",
+          "name": "Google Sheets OAuth2 API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "reports-exists",
+              "leftValue": "={{ ($json.sheets || []).some(sheet => sheet.properties.title === 'Reports') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "reports-exists",
+      "name": "Reports Tab Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
         0
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.groq.com/openai/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "TODO: connect Groq credential"
-            }
-          ]
-        },
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/1vV9FLBLTwp05lwBfQRIrV8rrVe6K0IqPbh1obQiDNWI:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
         "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({model:'TODO: choose Groq free model',messages:[{role:'system',content:'Summarize what changed this month in exactly three sentences. Use only supplied metrics.'},{role:'user',content:JSON.stringify($json)}]}) }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ {requests:[{addSheet:{properties:{title:'Reports'}}}]} }}",
         "options": {}
       },
-      "id": "groq",
-      "name": "TODO: connect Groq - 3 Sentence Summary",
+      "id": "create-reports",
+      "name": "Create Reports Tab",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -100,
-        0
+        720,
+        120
       ],
+      "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TODO_SELECT_IN_N8N",
+          "name": "Google Sheets OAuth2 API"
+        }
+      },
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "TODO: connect Google Slides API - copy template and replace placeholders",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/1vV9FLBLTwp05lwBfQRIrV8rrVe6K0IqPbh1obQiDNWI/values/Reports!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
         "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({template_id:$('Client Input').item.json.slides_template_id,replacements:$json}) }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ {majorDimension:'ROWS',values:[Object.keys($('Build Reports Row').first().json)]} }}",
         "options": {}
       },
-      "id": "slides",
-      "name": "TODO: connect Slides - Copy and Replace Placeholders",
+      "id": "write-headers",
+      "name": "Write Reports Headers",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        120,
-        0
+        940,
+        120
       ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "url": "TODO: connect Drive API - export presentation as PDF",
-        "responseFormat": "file",
-        "options": {}
-      },
-      "id": "drive",
-      "name": "TODO: connect Drive - Export PDF",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        340,
-        0
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "sendTo": "={{ $('Client Input').item.json.recipients }}",
-        "subject": "={{ $('Client Input').item.json.report_name }}",
-        "message": "Your monthly report is attached.",
-        "options": {
-          "attachmentsUi": {
-            "attachmentsBinary": [
-              {
-                "property": "data"
-              }
-            ]
-          }
+      "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TODO_SELECT_IN_N8N",
+          "name": "Google Sheets OAuth2 API"
         }
       },
-      "id": "gmail",
-      "name": "TODO: connect Gmail - Send PDF",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        560,
-        0
-      ],
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "chatId": "={{ $('Client Input').item.json.telegram_chat_id }}",
-        "text": "={{ $('Client Input').item.json.report_name + ' is ready.' }}",
-        "additionalFields": {}
+        "jsCode": "return [{json:$('Build Reports Row').first().json}];"
       },
-      "id": "telegram",
-      "name": "TODO: connect Telegram - Send Notice",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
+      "id": "restore-row",
+      "name": "Restore Reports Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        780,
+        1160,
         0
       ],
       "onError": "continueErrorOutput"
@@ -244,97 +349,155 @@
         "documentId": {
           "__rl": true,
           "mode": "id",
-          "value": "TODO: connect archive Google Sheet"
+          "value": "1vV9FLBLTwp05lwBfQRIrV8rrVe6K0IqPbh1obQiDNWI"
         },
         "sheetName": {
           "__rl": true,
           "mode": "name",
-          "value": "Archive"
+          "value": "Reports"
         },
         "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "client_id": "={{ $('Client Input').item.json.client_id }}",
-            "status": "sent",
-            "created_at": "={{ $now.toISO() }}"
-          },
-          "matchingColumns": [],
-          "schema": []
-        },
-        "options": {}
-      },
-      "id": "archive",
-      "name": "TODO: connect Google Sheets - Archive",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.6,
-      "position": [
-        1000,
-        0
-      ],
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "mode": "list",
-          "value": "TODO: connect wf_alert"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
+          "mappingMode": "autoMapInputData",
           "value": {},
           "matchingColumns": [],
           "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         },
-        "options": {
-          "waitForSubWorkflow": false
+        "options": {}
+      },
+      "id": "append-reports",
+      "name": "Append Reports Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        1380,
+        0
+      ],
+      "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TODO_SELECT_IN_N8N",
+          "name": "Google Sheets OAuth2 API"
         }
       },
-      "id": "alert",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "id": "alert-noop",
       "name": "TODO: connect wf_alert",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [
-        780,
-        260
+        1160,
+        300
+      ],
+      "notes": "Replace this NoOp with Execute Workflow -> wf_alert after alert credentials are connected."
+    },
+    {
+      "parameters": {},
+      "id": "todo-meta",
+      "name": "TODO: connect Meta",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -190,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "todo-gads",
+      "name": "TODO: connect Google Ads",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        40,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "todo-slides",
+      "name": "TODO: connect Slides Render",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        270,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "todo-gmail",
+      "name": "TODO: connect Gmail",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "todo-telegram",
+      "name": "TODO: connect Telegram",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        300
       ]
     }
   ],
   "pinData": {},
   "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sample Client - Edit GA4 Property",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample Client - Edit GA4 Property": {
+      "main": [
+        [
+          {
+            "node": "Prepare Client and Periods",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Client Input": {
       "main": [
         [
           {
-            "node": "TODO: connect GA4",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "TODO: connect Meta",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "TODO: connect Google Ads",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "TODO: connect Extra Source",
+            "node": "Prepare Client and Periods",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "TODO: connect GA4": {
+    "Prepare Client and Periods": {
       "main": [
         [
           {
-            "node": "Merge GA4 and Meta",
+            "node": "GA4 - Run Report",
             "type": "main",
             "index": 0
           }
@@ -348,29 +511,11 @@
         ]
       ]
     },
-    "TODO: connect Meta": {
+    "GA4 - Run Report": {
       "main": [
         [
           {
-            "node": "Merge GA4 and Meta",
-            "type": "main",
-            "index": 1
-          }
-        ],
-        [
-          {
-            "node": "TODO: connect wf_alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "TODO: connect Google Ads": {
-      "main": [
-        [
-          {
-            "node": "Merge Ads and Extra",
+            "node": "Map GA4 Response",
             "type": "main",
             "index": 0
           }
@@ -384,51 +529,18 @@
         ]
       ]
     },
-    "TODO: connect Extra Source": {
-      "main": [
-        [
-          {
-            "node": "Merge Ads and Extra",
-            "type": "main",
-            "index": 1
-          }
-        ],
-        [
-          {
-            "node": "TODO: connect wf_alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge GA4 and Meta": {
-      "main": [
-        [
-          {
-            "node": "Merge All Sources",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge Ads and Extra": {
-      "main": [
-        [
-          {
-            "node": "Merge All Sources",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge All Sources": {
+    "Map GA4 Response": {
       "main": [
         [
           {
             "node": "Calculate KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
             "type": "main",
             "index": 0
           }
@@ -439,18 +551,7 @@
       "main": [
         [
           {
-            "node": "TODO: connect Groq - 3 Sentence Summary",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "TODO: connect Groq - 3 Sentence Summary": {
-      "main": [
-        [
-          {
-            "node": "TODO: connect Slides - Copy and Replace Placeholders",
+            "node": "Build Reports Row",
             "type": "main",
             "index": 0
           }
@@ -464,11 +565,11 @@
         ]
       ]
     },
-    "TODO: connect Slides - Copy and Replace Placeholders": {
+    "Build Reports Row": {
       "main": [
         [
           {
-            "node": "TODO: connect Drive - Export PDF",
+            "node": "Check Reports Tab",
             "type": "main",
             "index": 0
           }
@@ -482,11 +583,11 @@
         ]
       ]
     },
-    "TODO: connect Drive - Export PDF": {
+    "Check Reports Tab": {
       "main": [
         [
           {
-            "node": "TODO: connect Gmail - Send PDF",
+            "node": "Reports Tab Exists?",
             "type": "main",
             "index": 0
           }
@@ -500,11 +601,29 @@
         ]
       ]
     },
-    "TODO: connect Gmail - Send PDF": {
+    "Reports Tab Exists?": {
       "main": [
         [
           {
-            "node": "TODO: connect Telegram - Send Notice",
+            "node": "Check Reports Headers",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Reports Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Reports Headers": {
+      "main": [
+        [
+          {
+            "node": "Reports Headers Exist?",
             "type": "main",
             "index": 0
           }
@@ -518,11 +637,29 @@
         ]
       ]
     },
-    "TODO: connect Telegram - Send Notice": {
+    "Reports Headers Exist?": {
       "main": [
         [
           {
-            "node": "TODO: connect Google Sheets - Archive",
+            "node": "Restore Reports Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Write Reports Headers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Reports Tab": {
+      "main": [
+        [
+          {
+            "node": "Write Reports Headers",
             "type": "main",
             "index": 0
           }
@@ -536,7 +673,43 @@
         ]
       ]
     },
-    "TODO: connect Google Sheets - Archive": {
+    "Write Reports Headers": {
+      "main": [
+        [
+          {
+            "node": "Restore Reports Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Reports Row": {
+      "main": [
+        [
+          {
+            "node": "Append Reports Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Reports Row": {
       "main": [
         [],
         [
@@ -553,7 +726,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "fa5b450b-da88-4499-a28f-f93f3ff10aaf",
+  "versionId": "fd52dc06-77b1-4b1a-84ea-b0506e86853a",
   "meta": {
     "templateCredsSetupCompleted": false
   },
