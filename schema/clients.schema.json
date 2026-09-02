@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/agency-reporting-clients.schema.json",
+  "title": "Agency reporting client",
+  "description": "One row from the Google Sheets Clients configuration tab.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["client_id", "agency", "report_name", "ga4_property_id", "meta_ad_account_id", "gads_customer_id", "extra_sheet_url", "kpis", "schedule_cron", "recipients", "telegram_chat_id", "logo_url", "brand_color", "slides_template_id", "timezone", "enabled"],
+  "properties": {
+    "client_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$" },
+    "agency": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "report_name": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "ga4_property_id": { "type": "string", "pattern": "^(|(?:properties/)?[0-9]+)$" },
+    "meta_ad_account_id": { "type": "string", "pattern": "^(|act_[0-9]+|[0-9]+)$" },
+    "gads_customer_id": { "type": "string", "pattern": "^(|[0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$" },
+    "extra_sheet_url": { "type": "string", "format": "uri", "allowEmpty": true },
+    "kpis": {
+      "type": "string",
+      "csvList": "kpi",
+      "minItems": 1,
+      "allowedValues": ["sessions", "users", "new_users", "conversions", "spend", "impressions", "clicks", "ctr", "cpc", "leads", "cpl", "purchases", "revenue", "roas"]
+    },
+    "schedule_cron": { "type": "string", "format": "cron5" },
+    "recipients": { "type": "string", "csvList": "email", "minItems": 1 },
+    "telegram_chat_id": { "type": "string", "pattern": "^(|@?[A-Za-z][A-Za-z0-9_]{4,31}|-?[0-9]+)$" },
+    "logo_url": { "type": "string", "format": "uri", "allowEmpty": true },
+    "brand_color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+    "slides_template_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "timezone": { "type": "string", "format": "iana-timezone" },
+    "enabled": { "type": "boolean" }
+  }
+}

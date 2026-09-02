@@ -1,0 +1,14 @@
+{
+  "name": "n8n-agency-reporting",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline-tested n8n workflow assets for automated agency reporting",
+  "scripts": {
+    "test": "node --test",
+    "validate:clients": "node schema/validate_clients.mjs fixtures/sample_clients.json",
+    "validate:workflows": "node --test tests/workflows.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

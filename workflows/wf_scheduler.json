@@ -1,0 +1,23 @@
+{
+  "name": "Agency Reporting - Scheduler",
+  "nodes": [
+    {"parameters":{"rule":{"interval":[{"field":"minutes","minutesInterval":1}]}},"id":"schedule","name":"Schedule Trigger - Every Minute","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1.2,"position":[-500,0]},
+    {"parameters":{"documentId":{"__rl":true,"mode":"id","value":"TODO: connect Clients Google Sheet"},"sheetName":{"__rl":true,"mode":"name","value":"Clients"},"options":{}},"id":"clients","name":"TODO: connect Google Sheets - Read Clients","type":"n8n-nodes-base.googleSheets","typeVersion":4.6,"position":[-280,0]},
+    {"parameters":{"jsCode":"const fieldMatches = (expression, value, minimum, maximum) => expression.split(',').some((part) => {\n  const [range, stepText = '1'] = part.split('/');\n  const step = Number(stepText);\n  let start = minimum;\n  let end = maximum;\n  if (range !== '*') {\n    const bounds = range.split('-').map(Number);\n    start = bounds[0];\n    end = bounds.length === 2 ? bounds[1] : bounds[0];\n  }\n  return value >= start && value <= end && (value - start) % step === 0;\n});\nconst cronMatchesNow = (cron, timezone) => {\n  const fields = String(cron).trim().split(/\\s+/);\n  if (fields.length !== 5) return false;\n  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone: timezone, minute:'2-digit', hour:'2-digit', hourCycle:'h23', day:'2-digit', month:'2-digit', weekday:'short'}).formatToParts(new Date()).map(({type,value}) => [type,value]));\n  const minute = Number(parts.minute);\n  const hour = Number(parts.hour);\n  const day = Number(parts.day);\n  const month = Number(parts.month);\n  const weekday = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(parts.weekday);\n  const dayOfMonthMatches = fieldMatches(fields[2], day, 1, 31);\n  const dayOfWeekMatches = fieldMatches(fields[4], weekday, 0, 7) || (weekday === 0 && fieldMatches(fields[4], 7, 0, 7));\n  const dayMatches = fields[2] !== '*' && fields[4] !== '*' ? dayOfMonthMatches || dayOfWeekMatches : dayOfMonthMatches && dayOfWeekMatches;\n  return fieldMatches(fields[0], minute, 0, 59) && fieldMatches(fields[1], hour, 0, 23) && dayMatches && fieldMatches(fields[3], month, 1, 12);\n};\nreturn items.filter(({json}) => {\n  const enabled = json.enabled === true || String(json.enabled).toLowerCase() === 'true';\n  return enabled && cronMatchesNow(json.schedule_cron, json.timezone || 'UTC');\n});"},"id":"filter","name":"Filter Enabled and Due Now","type":"n8n-nodes-base.code","typeVersion":2,"position":[-40,0]},
+    {"parameters":{"options":{}},"id":"loop","name":"Loop Over Clients","type":"n8n-nodes-base.splitInBatches","typeVersion":3,"position":[200,0]},
+    {"parameters":{"workflowId":{"__rl":true,"mode":"list","value":"TODO: connect wf_build_report"},"workflowInputs":{"mappingMode":"defineBelow","value":{},"matchingColumns":[],"schema":[],"attemptToConvertTypes":false,"convertFieldsToString":false},"options":{"waitForSubWorkflow":true}},"id":"build","name":"TODO: connect wf_build_report","type":"n8n-nodes-base.executeWorkflow","typeVersion":1.2,"position":[440,0]}
+  ],
+  "pinData":{},
+  "connections":{
+    "Schedule Trigger - Every Minute":{"main":[[{"node":"TODO: connect Google Sheets - Read Clients","type":"main","index":0}]]},
+    "TODO: connect Google Sheets - Read Clients":{"main":[[{"node":"Filter Enabled and Due Now","type":"main","index":0}]]},
+    "Filter Enabled and Due Now":{"main":[[{"node":"Loop Over Clients","type":"main","index":0}]]},
+    "Loop Over Clients":{"main":[[],[{"node":"TODO: connect wf_build_report","type":"main","index":0}]]},
+    "TODO: connect wf_build_report":{"main":[[{"node":"Loop Over Clients","type":"main","index":0}]]}
+  },
+  "active":false,
+  "settings":{"executionOrder":"v1"},
+  "versionId":"54e68c79-8330-42f7-9592-fb37b86d6095",
+  "meta":{"templateCredsSetupCompleted":false},
+  "tags":[]
+}

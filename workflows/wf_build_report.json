@@ -1,0 +1,561 @@
+{
+  "name": "Agency Reporting - Build Report",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "input",
+      "name": "Client Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "TODO: connect GA4 Data API",
+        "options": {}
+      },
+      "id": "ga4",
+      "name": "TODO: connect GA4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -980,
+        -300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "TODO: connect Meta Marketing API",
+        "options": {}
+      },
+      "id": "meta",
+      "name": "TODO: connect Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -980,
+        -100
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "TODO: connect Google Ads API",
+        "options": {}
+      },
+      "id": "gads",
+      "name": "TODO: connect Google Ads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -980,
+        100
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.extra_sheet_url || 'TODO: connect extra source' }}",
+        "options": {}
+      },
+      "id": "extra",
+      "name": "TODO: connect Extra Source",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -980,
+        300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge1",
+      "name": "Merge GA4 and Meta",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -760,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge2",
+      "name": "Merge Ads and Extra",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -760,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge3",
+      "name": "Merge All Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "'use strict';\n\n/** Pure KPI calculator plus a raw-paste n8n Code-node entrypoint. */\nconst DEFINITIONS = Object.freeze({\n  sessions:['Sessions','count','ga4'], users:['Users','count','ga4'], new_users:['New users','count','ga4'], conversions:['Conversions','count','ga4'],\n  spend:['Ad spend','currency','ads'], impressions:['Impressions','count','ads'], clicks:['Clicks','count','ads'], ctr:['Click-through rate','ratio','ads'],\n  cpc:['Cost per click','currency','ads'], leads:['Leads','count','ads'], cpl:['Cost per lead','currency','ads'], purchases:['Purchases','count','ads'],\n  revenue:['Revenue','currency','ads'], roas:['Return on ad spend','ratio','ads'],\n});\nconst GA4_KEYS=['sessions','users','new_users','conversions'];\nconst ADS_KEYS=['spend','impressions','clicks','leads','purchases','revenue'];\nconst empty=(keys,value=0)=>Object.fromEntries(keys.map(k=>[k,value]));\nconst number=value=>{ const n=Number(value); return value===null||value===''||!Number.isFinite(n)?0:n; };\nconst validDate=value=>typeof value==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(value)&&!Number.isNaN(Date.parse(`${value}T00:00:00Z`));\n\nfunction sumRows(rows,keys,period,quality,source){\n  const out=empty(keys);\n  for(const row of rows){\n    if(!validDate(row.date)){ quality.push({code:'invalid_date',source,detail:'A row was skipped because date must be YYYY-MM-DD.'}); continue; }\n    if(row.date<period.start||row.date>period.end) continue;\n    for(const key of keys) out[key]+=number(row[key]);\n  }\n  return out;\n}\nfunction ratio(n,d,key,period,quality){\n  if(d===0){ quality.push({code:'zero_divisor',kpi:key,period,detail:`${key} is null because its denominator is zero.`}); return null; }\n  return n/d;\n}\nfunction derived(t,period,q){return {...t,ctr:ratio(t.clicks,t.impressions,'ctr',period,q),cpc:ratio(t.spend,t.clicks,'cpc',period,q),cpl:ratio(t.spend,t.leads,'cpl',period,q),roas:ratio(t.revenue,t.spend,'roas',period,q)};}\nfunction monthLabel(iso){const [y,m]=iso.split('-').map(Number);return new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,1)));}\n\nfunction buildKpiReport(input){\n  if(!input?.period?.current||!input?.period?.previous) throw new TypeError('period.current and period.previous are required');\n  for(const [name,period] of Object.entries(input.period)) if(!validDate(period.start)||!validDate(period.end)||period.start>period.end) throw new RangeError(`period.${name} must contain an ordered YYYY-MM-DD start/end range`);\n  const requested=Array.isArray(input.kpis)?input.kpis:[];\n  const unknown=requested.filter(k=>!DEFINITIONS[k]);\n  if(unknown.length) throw new RangeError(`Unknown KPI(s): ${unknown.join(', ')}`);\n  const quality=[];\n  const affectedBySource={ga4:requested.filter(k=>DEFINITIONS[k][2]==='ga4'),meta:requested.filter(k=>DEFINITIONS[k][2]==='ads'),gads:requested.filter(k=>DEFINITIONS[k][2]==='ads')};\n  for(const source of ['ga4','meta','gads']) if(input[source]==null&&affectedBySource[source].length) quality.push({code:'missing_source',source,affected_kpis:affectedBySource[source],detail:`${source} source was not provided; affected KPIs may be unavailable or partial.`});\n  const results={};\n  for(const [periodName,period] of Object.entries(input.period)){\n    const ga4=input.ga4?sumRows(input.ga4.rows||[],GA4_KEYS,period,quality,'ga4'):empty(GA4_KEYS,null);\n    const adsAvailable=input.meta!=null||input.gads!=null;\n    if(adsAvailable){\n      const meta=input.meta?sumRows(input.meta.rows||[],ADS_KEYS,period,quality,'meta'):empty(ADS_KEYS);\n      const gads=input.gads?sumRows(input.gads.rows||[],ADS_KEYS,period,quality,'gads'):empty(ADS_KEYS);\n      const combined=Object.fromEntries(ADS_KEYS.map(k=>[k,meta[k]+gads[k]]));\n      results[periodName]={...ga4,...derived(combined,periodName,quality)};\n    } else results[periodName]={...ga4,...empty([...ADS_KEYS,'ctr','cpc','cpl','roas'],null)};\n  }\n  const metrics=requested.map(key=>{\n    const current=results.current[key],previous=results.previous[key];\n    const delta=current==null||previous==null?null:current-previous;\n    const pct=delta==null||previous===0?null:delta/Math.abs(previous);\n    if(delta!=null&&previous===0) quality.push({code:'zero_previous',kpi:key,detail:`${key} percentage change is null because the previous value is zero.`});\n    return {key,label:DEFINITIONS[key][0],unit:DEFINITIONS[key][1],current,previous,delta_abs:delta,delta_pct:pct,direction:delta==null||Math.abs(delta)<1e-12?'flat':delta>0?'up':'down'};\n  });\n  return {metrics,totals:{current:results.current,previous:results.previous},data_quality:quality,period_label:`${monthLabel(input.period.current.start)} vs ${monthLabel(input.period.previous.start)}`};\n}\nif(typeof module!=='undefined'&&module.exports) module.exports={buildKpiReport,KPI_DEFINITIONS:DEFINITIONS};\nif(typeof $input!=='undefined'){\n  const merged=$input.first().json;\n  const input=merged.period?merged:{...$('Client Input').first().json,ga4:$('TODO: connect GA4').first().json,meta:$('TODO: connect Meta').first().json,gads:$('TODO: connect Google Ads').first().json,extra:$('TODO: connect Extra Source').first().json};\n  input.kpis=Array.isArray(input.kpis)?input.kpis:String(input.kpis||'').split(',').map(k=>k.trim()).filter(Boolean);\n  if(!input.period){\n    const dateParts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:input.timezone||'UTC',year:'numeric',month:'2-digit'}).formatToParts(new Date()).map(({type,value})=>[type,value]));\n    const year=Number(dateParts.year),month=Number(dateParts.month),iso=date=>date.toISOString().slice(0,10);\n    input.period={current:{start:iso(new Date(Date.UTC(year,month-2,1))),end:iso(new Date(Date.UTC(year,month-1,0)))},previous:{start:iso(new Date(Date.UTC(year,month-3,1))),end:iso(new Date(Date.UTC(year,month-2,0)))}};\n  }\n  return [{json:buildKpiReport(input)}];\n}\n"
+      },
+      "id": "kpi",
+      "name": "Calculate KPIs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "TODO: connect Groq credential"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({model:'TODO: choose Groq free model',messages:[{role:'system',content:'Summarize what changed this month in exactly three sentences. Use only supplied metrics.'},{role:'user',content:JSON.stringify($json)}]}) }}",
+        "options": {}
+      },
+      "id": "groq",
+      "name": "TODO: connect Groq - 3 Sentence Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -100,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "TODO: connect Google Slides API - copy template and replace placeholders",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({template_id:$('Client Input').item.json.slides_template_id,replacements:$json}) }}",
+        "options": {}
+      },
+      "id": "slides",
+      "name": "TODO: connect Slides - Copy and Replace Placeholders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        120,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "TODO: connect Drive API - export presentation as PDF",
+        "responseFormat": "file",
+        "options": {}
+      },
+      "id": "drive",
+      "name": "TODO: connect Drive - Export PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        340,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Client Input').item.json.recipients }}",
+        "subject": "={{ $('Client Input').item.json.report_name }}",
+        "message": "Your monthly report is attached.",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "id": "gmail",
+      "name": "TODO: connect Gmail - Send PDF",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        560,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Client Input').item.json.telegram_chat_id }}",
+        "text": "={{ $('Client Input').item.json.report_name + ' is ready.' }}",
+        "additionalFields": {}
+      },
+      "id": "telegram",
+      "name": "TODO: connect Telegram - Send Notice",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        780,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "TODO: connect archive Google Sheet"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Archive"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "client_id": "={{ $('Client Input').item.json.client_id }}",
+            "status": "sent",
+            "created_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "archive",
+      "name": "TODO: connect Google Sheets - Archive",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        1000,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "TODO: connect wf_alert"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "alert",
+      "name": "TODO: connect wf_alert",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        780,
+        260
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Client Input": {
+      "main": [
+        [
+          {
+            "node": "TODO: connect GA4",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "TODO: connect Meta",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "TODO: connect Google Ads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "TODO: connect Extra Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect GA4": {
+      "main": [
+        [
+          {
+            "node": "Merge GA4 and Meta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Meta": {
+      "main": [
+        [
+          {
+            "node": "Merge GA4 and Meta",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Google Ads": {
+      "main": [
+        [
+          {
+            "node": "Merge Ads and Extra",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Extra Source": {
+      "main": [
+        [
+          {
+            "node": "Merge Ads and Extra",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge GA4 and Meta": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Ads and Extra": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge All Sources": {
+      "main": [
+        [
+          {
+            "node": "Calculate KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate KPIs": {
+      "main": [
+        [
+          {
+            "node": "TODO: connect Groq - 3 Sentence Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Groq - 3 Sentence Summary": {
+      "main": [
+        [
+          {
+            "node": "TODO: connect Slides - Copy and Replace Placeholders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Slides - Copy and Replace Placeholders": {
+      "main": [
+        [
+          {
+            "node": "TODO: connect Drive - Export PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Drive - Export PDF": {
+      "main": [
+        [
+          {
+            "node": "TODO: connect Gmail - Send PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Gmail - Send PDF": {
+      "main": [
+        [
+          {
+            "node": "TODO: connect Telegram - Send Notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Telegram - Send Notice": {
+      "main": [
+        [
+          {
+            "node": "TODO: connect Google Sheets - Archive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO: connect Google Sheets - Archive": {
+      "main": [
+        [],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fa5b450b-da88-4499-a28f-f93f3ff10aaf",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

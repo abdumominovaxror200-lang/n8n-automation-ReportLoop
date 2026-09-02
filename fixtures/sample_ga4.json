@@ -1,0 +1,438 @@
+{
+  "rows": [
+    {
+      "date": "2026-07-01",
+      "sessions": 94,
+      "users": 76,
+      "new_users": 28,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-02",
+      "sessions": 97,
+      "users": 78,
+      "new_users": 29,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-03",
+      "sessions": 100,
+      "users": 80,
+      "new_users": 30,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-04",
+      "sessions": 103,
+      "users": 82,
+      "new_users": 31,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-05",
+      "sessions": 106,
+      "users": 84,
+      "new_users": 32,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-06",
+      "sessions": 109,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-07",
+      "sessions": 91,
+      "users": 74,
+      "new_users": 27,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-08",
+      "sessions": 94,
+      "users": 76,
+      "new_users": 28,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-09",
+      "sessions": 97,
+      "users": 78,
+      "new_users": 29,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-10",
+      "sessions": 100,
+      "users": 80,
+      "new_users": 30,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-11",
+      "sessions": 103,
+      "users": 82,
+      "new_users": 31,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-12",
+      "sessions": 106,
+      "users": 84,
+      "new_users": 32,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-13",
+      "sessions": 109,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-14",
+      "sessions": 91,
+      "users": 74,
+      "new_users": 27,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-15",
+      "sessions": 94,
+      "users": 76,
+      "new_users": 28,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-16",
+      "sessions": 97,
+      "users": 78,
+      "new_users": 29,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-17",
+      "sessions": 100,
+      "users": 80,
+      "new_users": 30,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-18",
+      "sessions": 103,
+      "users": 82,
+      "new_users": 31,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-19",
+      "sessions": 106,
+      "users": 84,
+      "new_users": 32,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-20",
+      "sessions": 109,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-21",
+      "sessions": 91,
+      "users": 74,
+      "new_users": 27,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-22",
+      "sessions": 94,
+      "users": 76,
+      "new_users": 28,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-23",
+      "sessions": 97,
+      "users": 78,
+      "new_users": 29,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-24",
+      "sessions": 100,
+      "users": 80,
+      "new_users": 30,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-25",
+      "sessions": 103,
+      "users": 82,
+      "new_users": 31,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-26",
+      "sessions": 106,
+      "users": 84,
+      "new_users": 32,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-27",
+      "sessions": 109,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-28",
+      "sessions": 91,
+      "users": 74,
+      "new_users": 27,
+      "conversions": 10
+    },
+    {
+      "date": "2026-07-29",
+      "sessions": 94,
+      "users": 76,
+      "new_users": 28,
+      "conversions": 11
+    },
+    {
+      "date": "2026-07-30",
+      "sessions": 97,
+      "users": 78,
+      "new_users": 29,
+      "conversions": 9
+    },
+    {
+      "date": "2026-07-31",
+      "sessions": 100,
+      "users": 80,
+      "new_users": 30,
+      "conversions": 10
+    },
+    {
+      "date": "2026-08-01",
+      "sessions": 114,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-02",
+      "sessions": 117,
+      "users": 88,
+      "new_users": 34,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-03",
+      "sessions": 120,
+      "users": 90,
+      "new_users": 35,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-04",
+      "sessions": 123,
+      "users": 92,
+      "new_users": 36,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-05",
+      "sessions": 126,
+      "users": 94,
+      "new_users": 37,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-06",
+      "sessions": 129,
+      "users": 96,
+      "new_users": 38,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-07",
+      "sessions": 111,
+      "users": 84,
+      "new_users": 32,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-08",
+      "sessions": 114,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-09",
+      "sessions": 117,
+      "users": 88,
+      "new_users": 34,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-10",
+      "sessions": 120,
+      "users": 90,
+      "new_users": 35,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-11",
+      "sessions": 123,
+      "users": 92,
+      "new_users": 36,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-12",
+      "sessions": 126,
+      "users": 94,
+      "new_users": 37,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-13",
+      "sessions": 129,
+      "users": 96,
+      "new_users": 38,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-14",
+      "sessions": 111,
+      "users": 84,
+      "new_users": 32,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-15",
+      "sessions": 114,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-16",
+      "sessions": 117,
+      "users": 88,
+      "new_users": 34,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-17",
+      "sessions": 120,
+      "users": 90,
+      "new_users": 35,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-18",
+      "sessions": 123,
+      "users": 92,
+      "new_users": 36,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-19",
+      "sessions": 126,
+      "users": 94,
+      "new_users": 37,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-20",
+      "sessions": 129,
+      "users": 96,
+      "new_users": 38,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-21",
+      "sessions": 111,
+      "users": 84,
+      "new_users": 32,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-22",
+      "sessions": 114,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-23",
+      "sessions": 117,
+      "users": 88,
+      "new_users": 34,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-24",
+      "sessions": 120,
+      "users": 90,
+      "new_users": 35,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-25",
+      "sessions": 123,
+      "users": 92,
+      "new_users": 36,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-26",
+      "sessions": 126,
+      "users": 94,
+      "new_users": 37,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-27",
+      "sessions": 129,
+      "users": 96,
+      "new_users": 38,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-28",
+      "sessions": 111,
+      "users": 84,
+      "new_users": 32,
+      "conversions": 12
+    },
+    {
+      "date": "2026-08-29",
+      "sessions": 114,
+      "users": 86,
+      "new_users": 33,
+      "conversions": 13
+    },
+    {
+      "date": "2026-08-30",
+      "sessions": 117,
+      "users": 88,
+      "new_users": 34,
+      "conversions": 11
+    },
+    {
+      "date": "2026-08-31",
+      "sessions": 120,
+      "users": 90,
+      "new_users": 35,
+      "conversions": 12
+    }
+  ]
+}

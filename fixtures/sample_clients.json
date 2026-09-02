@@ -1,0 +1,38 @@
+[
+  {
+    "client_id": "acme-demo",
+    "agency": "Northstar Agency",
+    "report_name": "Monthly Growth Report",
+    "ga4_property_id": "properties/100000001",
+    "meta_ad_account_id": "act_100000001",
+    "gads_customer_id": "100-000-0001",
+    "extra_sheet_url": "",
+    "kpis": "sessions,users,conversions,spend,leads,cpl,revenue,roas",
+    "schedule_cron": "0 9 2 * *",
+    "recipients": "owner@example.com,analyst@example.com",
+    "telegram_chat_id": "-100100000001",
+    "logo_url": "https://example.com/acme-logo.png",
+    "brand_color": "#2563EB",
+    "slides_template_id": "demo-template-1",
+    "timezone": "Asia/Tashkent",
+    "enabled": true
+  },
+  {
+    "client_id": "orbit-demo",
+    "agency": "Northstar Agency",
+    "report_name": "Paid Media Snapshot",
+    "ga4_property_id": "properties/100000002",
+    "meta_ad_account_id": "act_100000002",
+    "gads_customer_id": "100-000-0002",
+    "extra_sheet_url": "https://docs.google.com/spreadsheets/d/demo",
+    "kpis": "spend,impressions,clicks,ctr,cpc,purchases,revenue,roas",
+    "schedule_cron": "0 10 3 * *",
+    "recipients": "marketing@example.org",
+    "telegram_chat_id": "-100100000002",
+    "logo_url": "https://example.org/orbit-logo.png",
+    "brand_color": "#7C3AED",
+    "slides_template_id": "demo-template-2",
+    "timezone": "Europe/London",
+    "enabled": false
+  }
+]

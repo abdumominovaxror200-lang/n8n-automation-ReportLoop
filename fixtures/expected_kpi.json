@@ -1,0 +1,103 @@
+{
+  "period_label": "August 2026 vs July 2026",
+  "metrics": {
+    "sessions": {
+      "current": 3711,
+      "previous": 3091,
+      "delta_abs": 620,
+      "delta_pct": 0.20058233581365253,
+      "direction": "up"
+    },
+    "users": {
+      "current": 2784,
+      "previous": 2474,
+      "delta_abs": 310,
+      "delta_pct": 0.12530315278900567,
+      "direction": "up"
+    },
+    "new_users": {
+      "current": 1082,
+      "previous": 927,
+      "delta_abs": 155,
+      "delta_pct": 0.16720604099244876,
+      "direction": "up"
+    },
+    "conversions": {
+      "current": 372,
+      "previous": 310,
+      "delta_abs": 62,
+      "delta_pct": 0.2,
+      "direction": "up"
+    },
+    "spend": {
+      "current": 4176,
+      "previous": 3711,
+      "delta_abs": 465,
+      "delta_pct": 0.12530315278900567,
+      "direction": "up"
+    },
+    "impressions": {
+      "current": 80435,
+      "previous": 74235,
+      "delta_abs": 6200,
+      "delta_pct": 0.08351855593722637,
+      "direction": "up"
+    },
+    "clicks": {
+      "current": 4018,
+      "previous": 3708,
+      "delta_abs": 310,
+      "delta_pct": 0.08360302049622438,
+      "direction": "up"
+    },
+    "leads": {
+      "current": 434,
+      "previous": 372,
+      "delta_abs": 62,
+      "delta_pct": 0.16666666666666666,
+      "direction": "up"
+    },
+    "purchases": {
+      "current": 166,
+      "previous": 166,
+      "delta_abs": 0,
+      "delta_pct": 0,
+      "direction": "flat"
+    },
+    "revenue": {
+      "current": 17294,
+      "previous": 14814,
+      "delta_abs": 2480,
+      "delta_pct": 0.16740920750641286,
+      "direction": "up"
+    },
+    "ctr": {
+      "current": 0.04995337850438242,
+      "previous": 0.04994948474439281,
+      "delta_abs": 0.000003893759989610779,
+      "delta_pct": 0.00007795395707355884,
+      "direction": "up"
+    },
+    "cpc": {
+      "current": 1.0393230462916874,
+      "previous": 1.000809061488673,
+      "delta_abs": 0.03851398480301427,
+      "delta_pct": 0.03848284981125759,
+      "direction": "up"
+    },
+    "cpl": {
+      "current": 9.622119815668203,
+      "previous": 9.975806451612904,
+      "delta_abs": -0.35368663594470107,
+      "delta_pct": -0.035454440466566636,
+      "direction": "down"
+    },
+    "roas": {
+      "current": 4.141283524904215,
+      "previous": 3.991915925626516,
+      "delta_abs": 0.14936759927769883,
+      "delta_pct": 0.03741752132574189,
+      "direction": "up"
+    }
+  }
+}

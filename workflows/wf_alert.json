@@ -1,0 +1,15 @@
+{
+  "name":"Agency Reporting - Alert",
+  "nodes":[
+    {"parameters":{"inputSource":"passthrough"},"id":"trigger","name":"Alert Workflow Trigger","type":"n8n-nodes-base.executeWorkflowTrigger","typeVersion":1.1,"position":[-300,0]},
+    {"parameters":{"chatId":"={{ $json.telegram_chat_id }}","text":"=Report failed for {{ $json.client_id || 'unknown client' }}: {{ $json.error?.message || $json.message || 'Unknown error' }}","additionalFields":{}},"id":"telegram","name":"TODO: connect Telegram - Send Alert","type":"n8n-nodes-base.telegram","typeVersion":1.2,"position":[-60,0],"continueOnFail":true},
+    {"parameters":{"operation":"appendOrUpdate","documentId":{"__rl":true,"mode":"id","value":"TODO: connect Clients Google Sheet"},"sheetName":{"__rl":true,"mode":"name","value":"Clients"},"columns":{"mappingMode":"defineBelow","value":{"client_id":"={{ $json.client_id }}","last_status":"error","last_error":"={{ $json.error?.message || $json.message || 'Unknown error' }}","last_run_at":"={{ $now.toISO() }}"},"matchingColumns":["client_id"],"schema":[]},"options":{}},"id":"status","name":"TODO: connect Google Sheets - Write Error Status","type":"n8n-nodes-base.googleSheets","typeVersion":4.6,"position":[180,0]}
+  ],
+  "pinData":{},
+  "connections":{"Alert Workflow Trigger":{"main":[[{"node":"TODO: connect Telegram - Send Alert","type":"main","index":0}]]},"TODO: connect Telegram - Send Alert":{"main":[[{"node":"TODO: connect Google Sheets - Write Error Status","type":"main","index":0}]]}},
+  "active":false,
+  "settings":{"executionOrder":"v1"},
+  "versionId":"9fcbb95b-85ae-4819-a8d0-06b838535324",
+  "meta":{"templateCredsSetupCompleted":false},
+  "tags":[]
+}
