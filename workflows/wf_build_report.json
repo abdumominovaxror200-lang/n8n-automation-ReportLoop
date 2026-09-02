@@ -105,12 +105,6 @@
         -80
       ],
       "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "TODO_SELECT_IN_N8N",
-          "name": "Google Sheets OAuth2 API"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -155,7 +149,7 @@
         "genericAuthType": "oAuth2Api",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {dateRanges:[{startDate:$json.period.previous.start,endDate:$json.period.previous.end,name:'previous'},{startDate:$json.period.current.start,endDate:$json.period.current.end,name:'current'}],dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'totalUsers'},{name:'newUsers'},{name:'conversions'}],keepEmptyRows:true} }}",
+        "jsonBody": "={{ JSON.stringify({dateRanges:[{startDate:$json.period.previous.start,endDate:$json.period.previous.end,name:'previous'},{startDate:$json.period.current.start,endDate:$json.period.current.end,name:'current'}],dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'totalUsers'},{name:'newUsers'},{name:'conversions'}],keepEmptyRows:true}) }}",
         "options": {}
       },
       "id": "ga4-pull",
@@ -167,12 +161,6 @@
         0
       ],
       "notes": "TODO: connect Google Analytics OAuth2 API or generic Google OAuth2 API with analytics.readonly scope.",
-      "credentials": {
-        "oAuth2Api": {
-          "id": "TODO_SELECT_IN_N8N",
-          "name": "Google Analytics OAuth2 API"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -233,12 +221,6 @@
         0
       ],
       "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "TODO_SELECT_IN_N8N",
-          "name": "Google Sheets OAuth2 API"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -281,7 +263,7 @@
         "nodeCredentialType": "googleSheetsOAuth2Api",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {requests:[{addSheet:{properties:{title:'Reports'}}}]} }}",
+        "jsonBody": "={{ JSON.stringify({requests:[{addSheet:{properties:{title:'Reports'}}}]}) }}",
         "options": {}
       },
       "id": "create-reports",
@@ -293,12 +275,6 @@
         120
       ],
       "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "TODO_SELECT_IN_N8N",
-          "name": "Google Sheets OAuth2 API"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -309,7 +285,7 @@
         "nodeCredentialType": "googleSheetsOAuth2Api",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {majorDimension:'ROWS',values:[Object.keys($('Build Reports Row').first().json)]} }}",
+        "jsonBody": "={{ JSON.stringify({majorDimension:'ROWS',values:[Object.keys($('Build Reports Row').first().json)]}) }}",
         "options": {}
       },
       "id": "write-headers",
@@ -321,12 +297,6 @@
         120
       ],
       "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "TODO_SELECT_IN_N8N",
-          "name": "Google Sheets OAuth2 API"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -375,12 +345,20 @@
         0
       ],
       "notes": "TODO: connect the existing Google Sheets OAuth2 credential.",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "TODO_SELECT_IN_N8N",
-          "name": "Google Sheets OAuth2 API"
-        }
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "'use strict';\n\nconst DEFAULT_ACCENT = '#2563eb';\n\nfunction escapeHtml(value) {\n  return String(value ?? '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#39;');\n}\n\nfunction safeText(value, fallback) {\n  const text = String(value ?? '').trim();\n  return text || fallback;\n}\n\nfunction safeAccent(value) {\n  const color = String(value ?? '').trim();\n  return /^#[0-9a-f]{6}$/i.test(color) ? color : DEFAULT_ACCENT;\n}\n\nfunction safeLogo(value) {\n  const url = String(value ?? '').trim();\n  return /^https:\\/\\/[^\\s]+$/i.test(url) ? url : null;\n}\n\nfunction finiteOrNull(value) {\n  if (value === null || value === '' || value === undefined) return null;\n  const number = Number(value);\n  return Number.isFinite(number) ? number : null;\n}\n\nfunction formatNumber(value) {\n  const number = finiteOrNull(value);\n  if (number === null) return 'n/a';\n  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(number);\n}\n\nfunction formatDelta(value) {\n  const number = finiteOrNull(value);\n  if (number === null) return 'n/a';\n  return `${number > 0 ? '+' : ''}${(number * 100).toFixed(1)}%`;\n}\n\nfunction direction(value) {\n  const number = finiteOrNull(value);\n  if (number === null || Math.abs(number) < 1e-12) return { symbol: '–', color: '#64748b' };\n  return number > 0\n    ? { symbol: '▲', color: '#15803d' }\n    : { symbol: '▼', color: '#b91c1c' };\n}\n\nfunction labelFor(key) {\n  return key\n    .split('_')\n    .filter(Boolean)\n    .map((part) => part[0].toUpperCase() + part.slice(1))\n    .join(' ');\n}\n\nfunction metricRows(row) {\n  return Object.keys(row)\n    .filter((key) => key.endsWith('_current'))\n    .map((currentKey) => currentKey.slice(0, -'_current'.length))\n    .filter((key) => Object.hasOwn(row, `${key}_previous`))\n    .slice(0, 3)\n    .map((key) => ({\n      key,\n      label: labelFor(key),\n      current: row[`${key}_current`],\n      previous: row[`${key}_previous`],\n      delta: row[`${key}_delta_pct`],\n    }));\n}\n\nfunction dataNotes(value) {\n  let notes = value;\n  if (typeof notes === 'string') {\n    try { notes = JSON.parse(notes); } catch { notes = [notes]; }\n  }\n  if (!Array.isArray(notes)) return [];\n  return notes.map((note) => {\n    if (typeof note === 'string') return note.trim();\n    if (note && typeof note === 'object') {\n      return safeText(note.detail, safeText(note.code, 'Data quality note'));\n    }\n    return '';\n  }).filter(Boolean);\n}\n\nfunction whatChanged(metrics) {\n  const comparable = metrics\n    .map((metric) => ({ ...metric, numericDelta: finiteOrNull(metric.delta) }))\n    .filter((metric) => metric.numericDelta !== null)\n    .sort((left, right) => Math.abs(right.numericDelta) - Math.abs(left.numericDelta) || left.key.localeCompare(right.key));\n  if (!comparable.length) return 'No comparable percentage change is available for the displayed KPIs.';\n  const lead = comparable[0];\n  const verb = lead.numericDelta > 0 ? 'increased' : lead.numericDelta < 0 ? 'decreased' : 'was flat';\n  return `${lead.label} ${verb} by ${formatDelta(Math.abs(lead.numericDelta))} versus the previous period.`;\n}\n\nfunction renderReport(row, client = {}) {\n  if (!row || typeof row !== 'object' || Array.isArray(row)) throw new TypeError('Report row must be an object.');\n  const agency = safeText(client.agency, 'Agency');\n  const reportName = safeText(client.report_name, 'Performance Report');\n  const periodLabel = safeText(row.period_label, 'Current vs previous period');\n  const accent = safeAccent(client.brand_color);\n  const logo = safeLogo(client.logo_url);\n  const metrics = metricRows(row);\n  const notes = dataNotes(row.data_quality);\n  const changed = whatChanged(metrics);\n  const subject = `${agency} — ${reportName} — ${periodLabel}`;\n\n  const tableRows = metrics.map((metric) => {\n    const trend = direction(metric.delta);\n    return `<tr><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;font-weight:600\">${escapeHtml(metric.label)}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right\">${escapeHtml(formatNumber(metric.current))}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right\">${escapeHtml(formatNumber(metric.previous))}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;color:${trend.color};font-weight:700\">${trend.symbol} ${escapeHtml(formatDelta(metric.delta))}</td></tr>`;\n  }).join('');\n  const notesHtml = notes.length\n    ? `<h2 style=\"font-size:16px;margin:24px 0 8px\">Data notes</h2><ul style=\"margin:0;padding-left:20px\">${notes.map((note) => `<li style=\"margin:6px 0\">${escapeHtml(note)}</li>`).join('')}</ul>`\n    : '';\n  const logoHtml = logo ? `<img src=\"${escapeHtml(logo)}\" alt=\"${escapeHtml(agency)} logo\" style=\"display:block;max-height:48px;max-width:180px;margin-bottom:16px\">` : '';\n  const html = `<!doctype html><html><body style=\"margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif\"><div style=\"max-width:720px;margin:0 auto;padding:24px\"><div style=\"background:#ffffff;border-top:6px solid ${accent};padding:28px;border-radius:8px\">${logoHtml}<h1 style=\"margin:0 0 6px;font-size:24px\">${escapeHtml(reportName)}</h1><p style=\"margin:0 0 24px;color:#475569\">${escapeHtml(agency)} · ${escapeHtml(periodLabel)}</p><table role=\"presentation\" style=\"width:100%;border-collapse:collapse\"><thead><tr style=\"background:${accent};color:#ffffff\"><th style=\"padding:10px;text-align:left\">KPI</th><th style=\"padding:10px;text-align:right\">Current</th><th style=\"padding:10px;text-align:right\">Previous</th><th style=\"padding:10px;text-align:right\">Δ</th></tr></thead><tbody>${tableRows}</tbody></table><h2 style=\"font-size:16px;margin:24px 0 8px\">What changed</h2><p style=\"margin:0\">${escapeHtml(changed)}</p>${notesHtml}</div></div></body></html>`;\n\n  const textMetrics = metrics.map((metric) => {\n    const trend = direction(metric.delta);\n    return `${metric.label}: ${formatNumber(metric.current)} current | ${formatNumber(metric.previous)} previous | ${trend.symbol} ${formatDelta(metric.delta)}`;\n  });\n  const text = [\n    subject,\n    '',\n    ...textMetrics,\n    '',\n    `What changed: ${changed}`,\n    ...(notes.length ? ['', 'Data notes:', ...notes.map((note) => `- ${note}`)] : []),\n  ].join('\\n');\n\n  return { subject, html, text };\n}\n\nif (typeof module !== 'undefined' && module.exports) module.exports = { renderReport };\nif (typeof $input !== 'undefined') {\n  const row = $('Build Reports Row').first().json;\n  const client = $('Prepare Client and Periods').first().json;\n  return [{ json: { ...row, ...renderReport(row, client), report_pdf: null } }];\n}\n"
       },
+      "id": "report-render",
+      "name": "Render HTML + Text Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
       "onError": "continueErrorOutput"
     },
     {
@@ -710,6 +688,24 @@
       ]
     },
     "Append Reports Row": {
+      "main": [
+        [
+          {
+            "node": "Render HTML + Text Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TODO: connect wf_alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render HTML + Text Report": {
       "main": [
         [],
         [

@@ -117,3 +117,24 @@ Offline verification requires no credentials:
 npm test
 node --test code-nodes/ga4_map.test.js
 ```
+
+## Prompt #3 — report renderer
+
+After the KPI row is appended to the `Reports` tab, **Render HTML + Text Report** creates
+deterministic `subject`, `html`, and `text` fields. The HTML is a single email-safe document
+with inline styles, the first three KPI comparisons, a deterministic “What changed” sentence,
+and any `data_quality` notes. `report_pdf` is reserved as `null` for a later renderer.
+
+Branding comes from the Clients row: `agency`, `report_name`, optional HTTPS `logo_url`, and a
+six-digit hex `brand_color`. Invalid optional branding falls back safely. Meta, Google Ads,
+Slides, Gmail, Telegram, and `wf_alert` remain explicit TODO NoOps.
+
+Imported workflows intentionally contain no baked credential objects. Select the GA4 and
+Google Sheets credentials in the n8n UI after import. Dynamic HTTP JSON bodies use n8n’s
+`JSON.stringify` expression form so they are sent as valid JSON.
+
+Offline renderer verification:
+
+```powershell
+node --test code-nodes/report_render.test.js
+```

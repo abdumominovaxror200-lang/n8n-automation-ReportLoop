@@ -45,12 +45,48 @@ test("GA4 slice embeds its mapper and requests the two explicit periods", async 
   const workflow = JSON.parse(rawWorkflow);
   const mapper = workflow.nodes.find((node) => node.name === "Map GA4 Response");
   const request = workflow.nodes.find((node) => node.name === "GA4 - Run Report");
-  assert.equal(mapper.parameters.jsCode.trim(), rawMapper.trim());
+  const normalizeLines = (value) => value.replace(/\r\n/g, "\n").trim();
+  assert.equal(normalizeLines(mapper.parameters.jsCode), normalizeLines(rawMapper));
   assert.match(request.parameters.url, /analyticsdata\.googleapis\.com\/v1beta/);
   assert.match(request.parameters.jsonBody, /period\.previous/);
   assert.match(request.parameters.jsonBody, /period\.current/);
   for (const metric of ["sessions", "totalUsers", "newUsers", "conversions"]) {
     assert.match(request.parameters.jsonBody, new RegExp(metric));
+  }
+});
+
+test("report workflow embeds the deterministic renderer after the sheet append", async () => {
+  const [rawWorkflow, rawRenderer] = await Promise.all([
+    readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8"),
+    readFile(new URL("../code-nodes/report_render.js", import.meta.url), "utf8"),
+  ]);
+  const workflow = JSON.parse(rawWorkflow);
+  const renderer = workflow.nodes.find((node) => node.name === "Render HTML + Text Report");
+  assert.ok(renderer);
+  const normalizeLines = (value) => value.replace(/\r\n/g, "\n").trim();
+  assert.equal(normalizeLines(renderer.parameters.jsCode), normalizeLines(rawRenderer));
+  assert.ok(
+    workflow.connections["Append Reports Row"].main[0]
+      .some((connection) => connection.node === "Render HTML + Text Report"),
+  );
+  assert.ok(
+    workflow.connections["Render HTML + Text Report"].main[1]
+      .some((connection) => connection.node === "TODO: connect wf_alert"),
+  );
+});
+
+test("imported workflow has no baked credentials and uses valid JSON body forms", async () => {
+  const raw = await readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8");
+  const workflow = JSON.parse(raw);
+  for (const node of workflow.nodes) {
+    assert.equal(Object.hasOwn(node, "credentials"), false, `${node.name} must not bake credentials`);
+    if (node.type !== "n8n-nodes-base.httpRequest" || node.parameters.jsonBody === undefined) continue;
+    const body = node.parameters.jsonBody.trim();
+    if (body.startsWith("={{")) {
+      assert.match(body, /^=\{\{\s*JSON\.stringify\(/, `${node.name} dynamic body must stringify JSON`);
+    } else {
+      assert.doesNotThrow(() => JSON.parse(body), `${node.name} static body must be plain JSON`);
+    }
   }
 });
 
