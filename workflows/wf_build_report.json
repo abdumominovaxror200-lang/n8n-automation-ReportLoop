@@ -373,7 +373,7 @@
     },
     {
       "parameters": {
-        "jsCode": "'use strict';\n\nconst DEFAULT_ACCENT = '#2563eb';\n\nfunction escapeHtml(value) {\n  return String(value ?? '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#39;');\n}\n\nfunction safeText(value, fallback) {\n  const text = String(value ?? '').trim();\n  return text || fallback;\n}\n\nfunction safeAccent(value) {\n  const color = String(value ?? '').trim();\n  return /^#[0-9a-f]{6}$/i.test(color) ? color : DEFAULT_ACCENT;\n}\n\nfunction safeLogo(value) {\n  const url = String(value ?? '').trim();\n  return /^https:\\/\\/[^\\s]+$/i.test(url) ? url : null;\n}\n\nfunction finiteOrNull(value) {\n  if (value === null || value === '' || value === undefined) return null;\n  const number = Number(value);\n  return Number.isFinite(number) ? number : null;\n}\n\nfunction formatNumber(value) {\n  const number = finiteOrNull(value);\n  if (number === null) return 'n/a';\n  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(number);\n}\n\nfunction formatDelta(value) {\n  const number = finiteOrNull(value);\n  if (number === null) return 'n/a';\n  return `${number > 0 ? '+' : ''}${(number * 100).toFixed(1)}%`;\n}\n\nfunction direction(value) {\n  const number = finiteOrNull(value);\n  if (number === null || Math.abs(number) < 1e-12) return { symbol: '–', color: '#64748b' };\n  return number > 0\n    ? { symbol: '▲', color: '#15803d' }\n    : { symbol: '▼', color: '#b91c1c' };\n}\n\nfunction labelFor(key) {\n  return key\n    .split('_')\n    .filter(Boolean)\n    .map((part) => part[0].toUpperCase() + part.slice(1))\n    .join(' ');\n}\n\nfunction metricRows(row) {\n  const available = Object.keys(row)\n    .filter((key) => key.endsWith('_current'))\n    .map((currentKey) => currentKey.slice(0, -'_current'.length))\n    .filter((key) => Object.hasOwn(row, `${key}_previous`));\n  const paidMedia = ['spend', 'cpl', 'roas', 'ctr'].filter((key) =>\n    available.includes(key) &&\n    (finiteOrNull(row[`${key}_current`]) !== null || finiteOrNull(row[`${key}_previous`]) !== null));\n  const keys = [\n    ...available.filter((key) => !paidMedia.includes(key)).slice(0, 3),\n    ...paidMedia,\n  ];\n  return keys\n    .map((key) => ({\n      key,\n      label: labelFor(key),\n      current: row[`${key}_current`],\n      previous: row[`${key}_previous`],\n      delta: row[`${key}_delta_pct`],\n    }));\n}\n\nfunction dataNotes(value) {\n  let notes = value;\n  if (typeof notes === 'string') {\n    try { notes = JSON.parse(notes); } catch { notes = [notes]; }\n  }\n  if (!Array.isArray(notes)) return [];\n  return notes.map((note) => {\n    if (typeof note === 'string') return note.trim();\n    if (note && typeof note === 'object') {\n      return safeText(note.detail, safeText(note.code, 'Data quality note'));\n    }\n    return '';\n  }).filter(Boolean);\n}\n\nfunction whatChanged(metrics) {\n  const comparable = metrics\n    .map((metric) => ({ ...metric, numericDelta: finiteOrNull(metric.delta) }))\n    .filter((metric) => metric.numericDelta !== null)\n    .sort((left, right) => Math.abs(right.numericDelta) - Math.abs(left.numericDelta) || left.key.localeCompare(right.key));\n  if (!comparable.length) return 'No comparable percentage change is available for the displayed KPIs.';\n  const lead = comparable[0];\n  const verb = lead.numericDelta > 0 ? 'increased' : lead.numericDelta < 0 ? 'decreased' : 'was flat';\n  return `${lead.label} ${verb} by ${formatDelta(Math.abs(lead.numericDelta))} versus the previous period.`;\n}\n\nfunction renderReport(row, client = {}) {\n  if (!row || typeof row !== 'object' || Array.isArray(row)) throw new TypeError('Report row must be an object.');\n  const agency = safeText(client.agency, 'Agency');\n  const reportName = safeText(client.report_name, 'Performance Report');\n  const periodLabel = safeText(row.period_label, 'Current vs previous period');\n  const accent = safeAccent(client.brand_color);\n  const logo = safeLogo(client.logo_url);\n  const metrics = metricRows(row);\n  const notes = dataNotes(row.data_quality);\n  const changed = whatChanged(metrics);\n  const subject = `${agency} — ${reportName} — ${periodLabel}`;\n\n  const tableRows = metrics.map((metric) => {\n    const trend = direction(metric.delta);\n    return `<tr><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;font-weight:600\">${escapeHtml(metric.label)}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right\">${escapeHtml(formatNumber(metric.current))}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right\">${escapeHtml(formatNumber(metric.previous))}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;color:${trend.color};font-weight:700\">${trend.symbol} ${escapeHtml(formatDelta(metric.delta))}</td></tr>`;\n  }).join('');\n  const notesHtml = notes.length\n    ? `<h2 style=\"font-size:16px;margin:24px 0 8px\">Data notes</h2><ul style=\"margin:0;padding-left:20px\">${notes.map((note) => `<li style=\"margin:6px 0\">${escapeHtml(note)}</li>`).join('')}</ul>`\n    : '';\n  const logoHtml = logo ? `<img src=\"${escapeHtml(logo)}\" alt=\"${escapeHtml(agency)} logo\" style=\"display:block;max-height:48px;max-width:180px;margin-bottom:16px\">` : '';\n  const html = `<!doctype html><html><body style=\"margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif\"><div style=\"max-width:720px;margin:0 auto;padding:24px\"><div style=\"background:#ffffff;border-top:6px solid ${accent};padding:28px;border-radius:8px\">${logoHtml}<h1 style=\"margin:0 0 6px;font-size:24px\">${escapeHtml(reportName)}</h1><p style=\"margin:0 0 24px;color:#475569\">${escapeHtml(agency)} · ${escapeHtml(periodLabel)}</p><table role=\"presentation\" style=\"width:100%;border-collapse:collapse\"><thead><tr style=\"background:${accent};color:#ffffff\"><th style=\"padding:10px;text-align:left\">KPI</th><th style=\"padding:10px;text-align:right\">Current</th><th style=\"padding:10px;text-align:right\">Previous</th><th style=\"padding:10px;text-align:right\">Δ</th></tr></thead><tbody>${tableRows}</tbody></table><h2 style=\"font-size:16px;margin:24px 0 8px\">What changed</h2><p style=\"margin:0\">${escapeHtml(changed)}</p>${notesHtml}</div></div></body></html>`;\n\n  const textMetrics = metrics.map((metric) => {\n    const trend = direction(metric.delta);\n    return `${metric.label}: ${formatNumber(metric.current)} current | ${formatNumber(metric.previous)} previous | ${trend.symbol} ${formatDelta(metric.delta)}`;\n  });\n  const text = [\n    subject,\n    '',\n    ...textMetrics,\n    '',\n    `What changed: ${changed}`,\n    ...(notes.length ? ['', 'Data notes:', ...notes.map((note) => `- ${note}`)] : []),\n  ].join('\\n');\n\n  return { subject, html, text };\n}\n\nif (typeof module !== 'undefined' && module.exports) module.exports = { renderReport };\nif (typeof $input !== 'undefined') {\n  const row = $('Build Reports Row').first().json;\n  const client = $('Prepare Client and Periods').first().json;\n  return [{ json: { ...row, ...renderReport(row, client), report_pdf: null } }];\n}\n"
+        "jsCode": "'use strict';\n\nconst DEFAULT_ACCENT = '#2563eb';\n\nfunction escapeHtml(value) {\n  return String(value ?? '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#39;');\n}\n\nfunction safeText(value, fallback) {\n  const text = String(value ?? '').trim();\n  return text || fallback;\n}\n\nfunction safeAccent(value) {\n  const color = String(value ?? '').trim();\n  return /^#[0-9a-f]{6}$/i.test(color) ? color : DEFAULT_ACCENT;\n}\n\nfunction safeLogo(value) {\n  const url = String(value ?? '').trim();\n  return /^https:\\/\\/[^\\s]+$/i.test(url) ? url : null;\n}\n\nfunction finiteOrNull(value) {\n  if (value === null || value === '' || value === undefined) return null;\n  const number = Number(value);\n  return Number.isFinite(number) ? number : null;\n}\n\nfunction formatNumber(value) {\n  const number = finiteOrNull(value);\n  if (number === null) return 'n/a';\n  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(number);\n}\n\nfunction formatDelta(value) {\n  const number = finiteOrNull(value);\n  if (number === null) return 'n/a';\n  return `${number > 0 ? '+' : ''}${(number * 100).toFixed(1)}%`;\n}\n\nfunction direction(value) {\n  const number = finiteOrNull(value);\n  if (number === null || Math.abs(number) < 1e-12) return { symbol: '–', color: '#64748b' };\n  return number > 0\n    ? { symbol: '▲', color: '#15803d' }\n    : { symbol: '▼', color: '#b91c1c' };\n}\n\nfunction labelFor(key) {\n  return key\n    .split('_')\n    .filter(Boolean)\n    .map((part) => part[0].toUpperCase() + part.slice(1))\n    .join(' ');\n}\n\nfunction metricRows(row) {\n  const available = Object.keys(row)\n    .filter((key) => key.endsWith('_current'))\n    .map((currentKey) => currentKey.slice(0, -'_current'.length))\n    .filter((key) => Object.hasOwn(row, `${key}_previous`));\n  const paidMedia = ['spend', 'cpl', 'roas', 'ctr'].filter((key) =>\n    available.includes(key) &&\n    (finiteOrNull(row[`${key}_current`]) !== null || finiteOrNull(row[`${key}_previous`]) !== null));\n  const keys = [\n    ...available.filter((key) => !paidMedia.includes(key)).slice(0, 3),\n    ...paidMedia,\n  ];\n  return keys\n    .map((key) => ({\n      key,\n      label: labelFor(key),\n      current: row[`${key}_current`],\n      previous: row[`${key}_previous`],\n      delta: row[`${key}_delta_pct`],\n    }));\n}\n\nfunction dataNotes(value) {\n  let notes = value;\n  if (typeof notes === 'string') {\n    try { notes = JSON.parse(notes); } catch { notes = [notes]; }\n  }\n  if (!Array.isArray(notes)) return [];\n  return notes.map((note) => {\n    if (typeof note === 'string') return note.trim();\n    if (note && typeof note === 'object') {\n      return safeText(note.detail, safeText(note.code, 'Data quality note'));\n    }\n    return '';\n  }).filter(Boolean);\n}\n\nfunction whatChanged(metrics) {\n  const comparable = metrics\n    .map((metric) => ({ ...metric, numericDelta: finiteOrNull(metric.delta) }))\n    .filter((metric) => metric.numericDelta !== null)\n    .sort((left, right) => Math.abs(right.numericDelta) - Math.abs(left.numericDelta) || left.key.localeCompare(right.key));\n  if (!comparable.length) return 'No comparable percentage change is available for the displayed KPIs.';\n  const lead = comparable[0];\n  const verb = lead.numericDelta > 0 ? 'increased' : lead.numericDelta < 0 ? 'decreased' : 'was flat';\n  return `${lead.label} ${verb} by ${formatDelta(Math.abs(lead.numericDelta))} versus the previous period.`;\n}\n\nfunction renderReport(row, client = {}) {\n  if (!row || typeof row !== 'object' || Array.isArray(row)) throw new TypeError('Report row must be an object.');\n  const agency = safeText(client.agency, 'Agency');\n  const reportName = safeText(client.report_name, 'Performance Report');\n  const periodLabel = safeText(row.period_label, 'Current vs previous period');\n  const accent = safeAccent(client.brand_color);\n  const logo = safeLogo(client.logo_url);\n  const metrics = metricRows(row);\n  const notes = dataNotes(row.data_quality);\n  const changed = safeText(row.insight_summary, whatChanged(metrics));\n  const recommendations = (Array.isArray(row.recommendations) ? row.recommendations : [])\n    .map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 3);\n  const subject = `${agency} — ${reportName} — ${periodLabel}`;\n\n  const tableRows = metrics.map((metric) => {\n    const trend = direction(metric.delta);\n    return `<tr><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;font-weight:600\">${escapeHtml(metric.label)}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right\">${escapeHtml(formatNumber(metric.current))}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right\">${escapeHtml(formatNumber(metric.previous))}</td><td style=\"padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;color:${trend.color};font-weight:700\">${trend.symbol} ${escapeHtml(formatDelta(metric.delta))}</td></tr>`;\n  }).join('');\n  const notesHtml = notes.length\n    ? `<h2 style=\"font-size:16px;margin:24px 0 8px\">Data notes</h2><ul style=\"margin:0;padding-left:20px\">${notes.map((note) => `<li style=\"margin:6px 0\">${escapeHtml(note)}</li>`).join('')}</ul>`\n    : '';\n  const recommendationsHtml = recommendations.length\n    ? `<h2 style=\"font-size:16px;margin:24px 0 8px\">Recommendations</h2><ul style=\"margin:0;padding-left:20px\">${recommendations.map((item) => `<li style=\"margin:6px 0\">${escapeHtml(item)}</li>`).join('')}</ul>`\n    : '';\n  const logoHtml = logo ? `<img src=\"${escapeHtml(logo)}\" alt=\"${escapeHtml(agency)} logo\" style=\"display:block;max-height:48px;max-width:180px;margin-bottom:16px\">` : '';\n  const html = `<!doctype html><html><body style=\"margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif\"><div style=\"max-width:720px;margin:0 auto;padding:24px\"><div style=\"background:#ffffff;border-top:6px solid ${accent};padding:28px;border-radius:8px\">${logoHtml}<h1 style=\"margin:0 0 6px;font-size:24px\">${escapeHtml(reportName)}</h1><p style=\"margin:0 0 24px;color:#475569\">${escapeHtml(agency)} · ${escapeHtml(periodLabel)}</p><table role=\"presentation\" style=\"width:100%;border-collapse:collapse\"><thead><tr style=\"background:${accent};color:#ffffff\"><th style=\"padding:10px;text-align:left\">KPI</th><th style=\"padding:10px;text-align:right\">Current</th><th style=\"padding:10px;text-align:right\">Previous</th><th style=\"padding:10px;text-align:right\">Δ</th></tr></thead><tbody>${tableRows}</tbody></table><h2 style=\"font-size:16px;margin:24px 0 8px\">What changed</h2><p style=\"margin:0\">${escapeHtml(changed)}</p>${recommendationsHtml}${notesHtml}</div></div></body></html>`;\n\n  const textMetrics = metrics.map((metric) => {\n    const trend = direction(metric.delta);\n    return `${metric.label}: ${formatNumber(metric.current)} current | ${formatNumber(metric.previous)} previous | ${trend.symbol} ${formatDelta(metric.delta)}`;\n  });\n  const text = [\n    subject,\n    '',\n    ...textMetrics,\n    '',\n    `What changed: ${changed}`,\n    ...(recommendations.length ? ['', 'Recommendations:', ...recommendations.map((item) => `- ${item}`)] : []),\n    ...(notes.length ? ['', 'Data notes:', ...notes.map((note) => `- ${note}`)] : []),\n  ].join('\\n');\n\n  return { subject, html, text };\n}\n\nif (typeof module !== 'undefined' && module.exports) module.exports = { renderReport };\nif (typeof $input !== 'undefined') {\n  const row = $input.first().json;\n  const client = $('Prepare Client and Periods').first().json;\n  return [{ json: { ...row, ...renderReport(row, client), report_pdf: null } }];\n}\n"
       },
       "id": "report-render",
       "name": "Render HTML + Text Report",
@@ -713,6 +713,104 @@
         0
       ],
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "'use strict';\n\nconst NUMBER_TOKEN = /\\$?\\d[\\d,]*(?:\\.\\d+)?%?/g;\nconst CURRENCY_METRICS = new Set(['spend', 'cpl', 'cpc', 'revenue']);\nconst META_METRICS = ['spend', 'cpl', 'roas', 'ctr', 'leads', 'impressions', 'clicks'];\n\nfunction finite(value) {\n  if (value === null || value === '' || value === undefined) return null;\n  const number = Number(value);\n  return Number.isFinite(number) ? number : null;\n}\n\nfunction label(key) {\n  return key.split('_').filter(Boolean)\n    .map((part) => part[0].toUpperCase() + part.slice(1)).join(' ');\n}\n\nfunction valueText(value) {\n  const number = finite(value);\n  if (number === null) return 'n/a';\n  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(number);\n}\n\nfunction deltaText(value) {\n  const number = finite(value);\n  if (number === null) return 'n/a';\n  return `${number > 0 ? '+' : ''}${(number * 100).toFixed(1)}%`;\n}\n\nfunction displayValue(key, value) {\n  const number = finite(value);\n  if (number === null) return 'n/a';\n  if (CURRENCY_METRICS.has(key)) return `$${valueText(number)}`;\n  if (key === 'ctr') return `${(number * 100).toFixed(1)}%`;\n  return valueText(number);\n}\n\nfunction parseQuality(value) {\n  let quality = value;\n  if (typeof quality === 'string') {\n    try { quality = JSON.parse(quality); } catch { quality = [quality]; }\n  }\n  if (!Array.isArray(quality)) return [];\n  return quality.map((entry) => {\n    if (typeof entry === 'string') return entry.trim();\n    if (entry && typeof entry === 'object') return String(entry.detail ?? entry.code ?? '').trim();\n    return '';\n  }).filter(Boolean);\n}\n\nfunction metric(row, key) {\n  return {\n    key,\n    label: label(key),\n    current: finite(row[`${key}_current`]),\n    previous: finite(row[`${key}_previous`]),\n    delta: finite(row[`${key}_delta_pct`]),\n  };\n}\n\nfunction buildInsightBrief(row) {\n  if (!row || typeof row !== 'object' || Array.isArray(row)) throw new TypeError('Reports row must be an object.');\n  const metrics = Object.keys(row)\n    .filter((key) => key.endsWith('_current'))\n    .map((key) => key.slice(0, -'_current'.length))\n    .filter((key) => Object.hasOwn(row, `${key}_previous`))\n    .map((key) => metric(row, key));\n  const byKey = Object.fromEntries(metrics.map((entry) => [entry.key, entry]));\n  const movers = metrics\n    .filter((entry) => entry.current !== null && entry.previous !== null && entry.delta !== null)\n    .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta) || left.key.localeCompare(right.key))\n    .slice(0, 3)\n    .map((entry) => ({\n      metric: entry.key,\n      label: entry.label,\n      from: displayValue(entry.key, entry.previous),\n      to: displayValue(entry.key, entry.current),\n      delta_pct: deltaText(entry.delta),\n      direction: entry.delta > 0 ? 'up' : entry.delta < 0 ? 'down' : 'flat',\n    }));\n\n  const flags = [];\n  if (byKey.cpl?.delta > 0.20) flags.push({ code: 'cpl_up', message: 'Cost per lead rose materially.' });\n  if (byKey.conversions?.delta < -0.15) flags.push({ code: 'conversions_down', message: 'Conversions fell materially.' });\n  if (byKey.spend?.delta > 0.15 && byKey.leads?.delta !== null && Math.abs(byKey.leads.delta) < 0.05) {\n    flags.push({ code: 'spend_up_leads_flat', message: 'Spend rose materially while leads were nearly flat.' });\n  }\n  if (byKey.sessions?.delta < -0.25) flags.push({ code: 'sessions_down', message: 'Sessions fell materially.' });\n  for (const entry of metrics.filter((candidate) => candidate.previous === 0)) {\n    flags.push({\n      code: 'no_comparison',\n      metric: entry.key,\n      previous: displayValue(entry.key, entry.previous),\n      message: `${entry.label} has a zero previous-period value, so percentage comparison is unavailable.`,\n    });\n  }\n\n  const dataQuality = parseQuality(row.data_quality);\n  const hasMeta = META_METRICS.some((key) =>\n    byKey[key] && (byKey[key].current !== null || byKey[key].previous !== null));\n  const brief = {\n    period_label: String(row.period_label ?? ''),\n    movers,\n    flags,\n    data_quality: dataQuality,\n    has_meta: hasMeta,\n  };\n  brief.facts = [...new Set(JSON.stringify(brief).match(NUMBER_TOKEN) ?? [])].sort();\n  return brief;\n}\n\nif (typeof module !== 'undefined' && module.exports) module.exports = { buildInsightBrief };\nif (typeof $input !== 'undefined') {\n  const row = $input.first().json;\n  return [{ json: { ...row, brief: buildInsightBrief(row) } }];\n}\n"
+      },
+      "id": "insight-brief",
+      "name": "Build Insight Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        -160
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({model:'deepseek-chat',temperature:0.2,max_tokens:280,messages:[{role:'system',content:\"You are a marketing analyst. In 2–4 sentences, describe what changed this period and the single most likely reason, then list up to 3 short, specific recommendations. Use ONLY numbers that appear in the BRIEF JSON. Never assert causation you cannot support from the brief — use 'coincided with' or 'may be linked to'. No preamble, no headings, no markdown.\"},{role:'user',content:JSON.stringify($json.brief)}]}) }}",
+        "options": {}
+      },
+      "id": "deepseek-insight",
+      "name": "DeepSeek Insight Narrative",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2040,
+        -160
+      ],
+      "notes": "TODO: connect a Header Auth credential with Authorization: Bearer <DeepSeek API key> after import. Failure uses deterministic fallback.",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "'use strict';\n\nconst MAX_NARRATIVE_LENGTH = 600;\nconst NUMBER_TOKEN = /\\$?\\d[\\d,]*(?:\\.\\d+)?%?/g;\n\nfunction deterministicInsight(brief) {\n  const movers = Array.isArray(brief?.movers) ? brief.movers : [];\n  const flags = Array.isArray(brief?.flags) ? brief.flags : [];\n  const summary = movers.length\n    ? movers.map((mover) => `${mover.label} ${mover.from} → ${mover.to} (${mover.delta_pct}).`).join(' ')\n    : 'No comparable KPI movement is available for this period.';\n  const recommendationsByFlag = {\n    cpl_up: 'Review paid-media targeting and lead quality before changing budget.',\n    conversions_down: 'Inspect conversion tracking and the conversion funnel for the measured period.',\n    spend_up_leads_flat: 'Compare campaign-level spend and lead quality before reallocating spend.',\n    sessions_down: 'Review acquisition-channel traffic and tracking coverage for the measured period.',\n  };\n  let recommendations = [...new Set(flags\n    .map((flag) => recommendationsByFlag[flag.code])\n    .filter(Boolean))].slice(0, 2);\n  if (!recommendations.length && movers.length) {\n    recommendations = ['Monitor the largest measured KPI movements before changing campaign settings.'];\n  }\n  const flagNotes = flags\n    .map((flag) => String(flag.message ?? '').trim())\n    .filter(Boolean);\n  return {\n    insight_summary: [summary, ...flagNotes].filter(Boolean).join(' '),\n    recommendations,\n    insight_source: 'fallback',\n  };\n}\n\nfunction contentFrom(response) {\n  if (typeof response === 'string') return response.trim();\n  return String(response?.choices?.[0]?.message?.content ?? '').trim();\n}\n\nfunction cleanContent(content) {\n  return content\n    .replace(/^\\s*(?:here(?:'s| is)\\s+(?:the|a)\\s+[^\\n:.]+[:.]?)\\s*/i, '')\n    .split(/\\r?\\n/)\n    .filter((line) => !/^\\s*#*\\s*(?:analysis|insights?|summary|recommendations?|what changed)\\s*:?[#*\\s]*$/i.test(line))\n    .map((line) => line\n      .replace(/^\\s*(?:[-*•]|\\d+[.)])\\s+/, '')\n      .replace(/^\\s*#*\\s*(?:analysis|insights?|summary|recommendations?|what changed)\\s*:\\s*/i, '')\n      .replace(/\\[([^\\]]+)]\\([^)]+\\)/g, '$1')\n      .replace(/[>*_`#]/g, '')\n      .trim())\n    .filter(Boolean)\n    .join('\\n')\n    .slice(0, MAX_NARRATIVE_LENGTH)\n    .trim();\n}\n\nfunction numbersAreAllowed(content, facts) {\n  const allowed = new Set((Array.isArray(facts) ? facts : []).map(String));\n  return (content.match(NUMBER_TOKEN) ?? []).every((token) => allowed.has(token));\n}\n\nfunction splitNarrative(content) {\n  const summary = [];\n  const recommendations = [];\n  const action = /^(?:review|inspect|verify|compare|monitor|investigate|consider|audit|check|focus|test|optimize|pause|adjust|reallocate)\\b/i;\n  for (const line of content.split(/\\r?\\n/)) {\n    for (const sentence of line.match(/[^.!?]+[.!?]?/g) ?? []) {\n      const text = sentence.trim();\n      if (!text) continue;\n      if (action.test(text)) recommendations.push(text);\n      else summary.push(text);\n    }\n  }\n  return {\n    insight_summary: summary.join(' '),\n    recommendations: recommendations.slice(0, 3),\n    insight_source: 'llm',\n  };\n}\n\nfunction applyInsight(response, brief) {\n  const content = cleanContent(contentFrom(response));\n  if (!content || !numbersAreAllowed(content, brief?.facts)) return deterministicInsight(brief);\n  const parsed = splitNarrative(content);\n  if (!parsed.insight_summary) return deterministicInsight(brief);\n  return parsed;\n}\n\nif (typeof module !== 'undefined' && module.exports) {\n  module.exports = { applyInsight, deterministicInsight, MAX_NARRATIVE_LENGTH };\n}\nif (typeof $input !== 'undefined') {\n  const source = $('Build Insight Brief').first().json;\n  return [{ json: { ...source, ...applyInsight($input.first().json, source.brief) } }];\n}\n"
+      },
+      "id": "insight-apply",
+      "name": "Validate and Apply Insight",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2260,
+        -160
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "insight-eligible-value",
+              "leftValue": "={{ $json.brief.movers.length > 0 && !$json.brief.flags.some(flag => flag.code === 'no_comparison') && Object.keys($json).some(key => (key.endsWith('_current') || key.endsWith('_previous')) && Number.isFinite(Number($json[key])) && Number($json[key]) !== 0) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "insight-eligible",
+      "name": "Insight LLM Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2040,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:$('Render HTML + Text Report').first().json}];"
+      },
+      "id": "restore-rendered-report",
+      "name": "Restore Rendered Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -838,7 +936,7 @@
       "main": [
         [
           {
-            "node": "Check Reports Tab",
+            "node": "Build Insight Brief",
             "type": "main",
             "index": 0
           }
@@ -982,7 +1080,7 @@
       "main": [
         [
           {
-            "node": "Render HTML + Text Report",
+            "node": "Restore Rendered Report",
             "type": "main",
             "index": 0
           }
@@ -1000,7 +1098,7 @@
       "main": [
         [
           {
-            "node": "Prepare Delivery",
+            "node": "Check Reports Tab",
             "type": "main",
             "index": 0
           }
@@ -1223,6 +1321,101 @@
         [
           {
             "node": "Calculate KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Insight Brief": {
+      "main": [
+        [
+          {
+            "node": "Insight LLM Eligible?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Apply Insight": {
+      "main": [
+        [
+          {
+            "node": "Render HTML + Text Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insight LLM Eligible?": {
+      "main": [
+        [
+          {
+            "node": "DeepSeek Insight Narrative",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate and Apply Insight",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Insight Narrative": {
+      "main": [
+        [
+          {
+            "node": "Validate and Apply Insight",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate and Apply Insight",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Rendered Report": {
+      "main": [
+        [
+          {
+            "node": "Prepare Delivery",
             "type": "main",
             "index": 0
           }

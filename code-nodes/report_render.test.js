@@ -86,3 +86,16 @@ test('available Meta KPIs are added while unavailable Meta rows stay hidden', ()
   }, client);
   assert.doesNotMatch(withoutMeta.html, />Spend</);
 });
+
+test('validated insight and recommendations replace only the narrative sections', () => {
+  const report = renderReport({
+    ...row,
+    insight_summary: 'Sessions declined while conversion efficiency held steady.',
+    recommendations: ['Review acquisition mix.', 'Verify campaign tracking.'],
+  }, client);
+  assert.match(report.html, /Sessions declined while conversion efficiency held steady/);
+  assert.match(report.html, /Recommendations/);
+  assert.match(report.html, /Review acquisition mix/);
+  assert.match(report.text, /Recommendations:\n- Review acquisition mix/);
+  assert.doesNotMatch(report.html, /Sessions increased by/);
+});

@@ -2,7 +2,7 @@
 
 Config-driven, multi-client marketing report automation built for the free local stack in
 [`PLAN.md`](PLAN.md). It combines Google Analytics 4, Meta Ads, Google Ads, and an optional
-extra data source; calculates month-over-month KPIs; asks Groq for a three-sentence summary;
+extra data source; calculates month-over-month KPIs; optionally asks DeepSeek for a fact-checked summary;
 renders a Google Slides template; exports it through Drive as PDF; and delivers it through
 Gmail and Telegram.
 
@@ -74,7 +74,7 @@ expressions and must not be executed until credentials and resource IDs are conn
 
 ## Credentials added later
 
-Google OAuth (Sheets, GA4, Slides, Drive, Gmail), Meta, Google Ads, Groq, and Telegram credentials
+Google OAuth (Sheets, GA4, Slides, Drive, Gmail), Meta, Google Ads, DeepSeek, and Telegram credentials
 are connected in the local n8n UI. Never commit tokens, OAuth client secrets, chat credentials,
 or exported n8n credential objects.
 
@@ -175,3 +175,17 @@ prefix. No access token is stored in the exported JSON.
 Google Ads intentionally remains **TODO: connect Google Ads** because production reporting needs
 a reviewed developer token. See `docs/google-ads-setup.md` for the MCC, access-level, OAuth scope,
 and request-header checklist.
+
+## Prompt #6 — insights (DeepSeek)
+
+Before rendering, the workflow builds a compact numerical brief from the Reports row. The brief
+contains only the largest KPI movers, deterministic threshold flags, data-quality notes, and an
+allowlist of permitted number strings. DeepSeek may phrase those facts as a short narrative and up to
+three recommendations, but it does not calculate metrics.
+
+After import, select a **Header Auth** credential on **DeepSeek Insight Narrative** with an
+`Authorization` header whose value is `Bearer <your DeepSeek API key>`. No credential is baked into
+the workflow JSON. If DeepSeek is skipped, fails, returns no content, or introduces any number absent from the
+brief allowlist, the entire generated narrative is rejected and a deterministic local fallback is
+rendered instead. The output field `insight_source` is `llm` or `fallback` for monitoring. The
+workflow therefore remains functional without an LLM connection.

@@ -117,7 +117,9 @@ function renderReport(row, client = {}) {
   const logo = safeLogo(client.logo_url);
   const metrics = metricRows(row);
   const notes = dataNotes(row.data_quality);
-  const changed = whatChanged(metrics);
+  const changed = safeText(row.insight_summary, whatChanged(metrics));
+  const recommendations = (Array.isArray(row.recommendations) ? row.recommendations : [])
+    .map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 3);
   const subject = `${agency} — ${reportName} — ${periodLabel}`;
 
   const tableRows = metrics.map((metric) => {
@@ -127,8 +129,11 @@ function renderReport(row, client = {}) {
   const notesHtml = notes.length
     ? `<h2 style="font-size:16px;margin:24px 0 8px">Data notes</h2><ul style="margin:0;padding-left:20px">${notes.map((note) => `<li style="margin:6px 0">${escapeHtml(note)}</li>`).join('')}</ul>`
     : '';
+  const recommendationsHtml = recommendations.length
+    ? `<h2 style="font-size:16px;margin:24px 0 8px">Recommendations</h2><ul style="margin:0;padding-left:20px">${recommendations.map((item) => `<li style="margin:6px 0">${escapeHtml(item)}</li>`).join('')}</ul>`
+    : '';
   const logoHtml = logo ? `<img src="${escapeHtml(logo)}" alt="${escapeHtml(agency)} logo" style="display:block;max-height:48px;max-width:180px;margin-bottom:16px">` : '';
-  const html = `<!doctype html><html><body style="margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif"><div style="max-width:720px;margin:0 auto;padding:24px"><div style="background:#ffffff;border-top:6px solid ${accent};padding:28px;border-radius:8px">${logoHtml}<h1 style="margin:0 0 6px;font-size:24px">${escapeHtml(reportName)}</h1><p style="margin:0 0 24px;color:#475569">${escapeHtml(agency)} · ${escapeHtml(periodLabel)}</p><table role="presentation" style="width:100%;border-collapse:collapse"><thead><tr style="background:${accent};color:#ffffff"><th style="padding:10px;text-align:left">KPI</th><th style="padding:10px;text-align:right">Current</th><th style="padding:10px;text-align:right">Previous</th><th style="padding:10px;text-align:right">Δ</th></tr></thead><tbody>${tableRows}</tbody></table><h2 style="font-size:16px;margin:24px 0 8px">What changed</h2><p style="margin:0">${escapeHtml(changed)}</p>${notesHtml}</div></div></body></html>`;
+  const html = `<!doctype html><html><body style="margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif"><div style="max-width:720px;margin:0 auto;padding:24px"><div style="background:#ffffff;border-top:6px solid ${accent};padding:28px;border-radius:8px">${logoHtml}<h1 style="margin:0 0 6px;font-size:24px">${escapeHtml(reportName)}</h1><p style="margin:0 0 24px;color:#475569">${escapeHtml(agency)} · ${escapeHtml(periodLabel)}</p><table role="presentation" style="width:100%;border-collapse:collapse"><thead><tr style="background:${accent};color:#ffffff"><th style="padding:10px;text-align:left">KPI</th><th style="padding:10px;text-align:right">Current</th><th style="padding:10px;text-align:right">Previous</th><th style="padding:10px;text-align:right">Δ</th></tr></thead><tbody>${tableRows}</tbody></table><h2 style="font-size:16px;margin:24px 0 8px">What changed</h2><p style="margin:0">${escapeHtml(changed)}</p>${recommendationsHtml}${notesHtml}</div></div></body></html>`;
 
   const textMetrics = metrics.map((metric) => {
     const trend = direction(metric.delta);
@@ -140,6 +145,7 @@ function renderReport(row, client = {}) {
     ...textMetrics,
     '',
     `What changed: ${changed}`,
+    ...(recommendations.length ? ['', 'Recommendations:', ...recommendations.map((item) => `- ${item}`)] : []),
     ...(notes.length ? ['', 'Data notes:', ...notes.map((note) => `- ${note}`)] : []),
   ].join('\n');
 
@@ -148,7 +154,7 @@ function renderReport(row, client = {}) {
 
 if (typeof module !== 'undefined' && module.exports) module.exports = { renderReport };
 if (typeof $input !== 'undefined') {
-  const row = $('Build Reports Row').first().json;
+  const row = $input.first().json;
   const client = $('Prepare Client and Periods').first().json;
   return [{ json: { ...row, ...renderReport(row, client), report_pdf: null } }];
 }

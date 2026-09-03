@@ -98,7 +98,7 @@ test("optional Meta branch embeds its mapper and joins the shared KPI input", as
     .some((connection) => connection.node === "Merge All Sources" && connection.index === 1));
 });
 
-test("report workflow embeds the deterministic renderer after the sheet append", async () => {
+test("report workflow embeds the deterministic renderer after validated insight", async () => {
   const [rawWorkflow, rawRenderer] = await Promise.all([
     readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8"),
     readFile(new URL("../code-nodes/report_render.js", import.meta.url), "utf8"),
@@ -109,13 +109,54 @@ test("report workflow embeds the deterministic renderer after the sheet append",
   const normalizeLines = (value) => value.replace(/\r\n/g, "\n").trim();
   assert.equal(normalizeLines(renderer.parameters.jsCode), normalizeLines(rawRenderer));
   assert.ok(
-    workflow.connections["Append Reports Row"].main[0]
+    workflow.connections["Validate and Apply Insight"].main[0]
       .some((connection) => connection.node === "Render HTML + Text Report"),
   );
   assert.ok(
     workflow.connections["Render HTML + Text Report"].main[1]
       .some((connection) => connection.node === "Send Failure Alert"),
   );
+});
+
+test("insight stage embeds deterministic guards around the optional DeepSeek call", async () => {
+  const [rawWorkflow, rawBrief, rawApply] = await Promise.all([
+    readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8"),
+    readFile(new URL("../code-nodes/insight_brief.js", import.meta.url), "utf8"),
+    readFile(new URL("../code-nodes/insight_apply.js", import.meta.url), "utf8"),
+  ]);
+  const workflow = JSON.parse(rawWorkflow);
+  const normalizeLines = (value) => value.replace(/\r\n/g, "\n").trim();
+  const brief = workflow.nodes.find((node) => node.name === "Build Insight Brief");
+  const apply = workflow.nodes.find((node) => node.name === "Validate and Apply Insight");
+  const deepseek = workflow.nodes.find((node) => node.name === "DeepSeek Insight Narrative");
+  assert.equal(normalizeLines(brief.parameters.jsCode), normalizeLines(rawBrief));
+  assert.equal(normalizeLines(apply.parameters.jsCode), normalizeLines(rawApply));
+  assert.equal(deepseek.parameters.url, "https://api.deepseek.com/chat/completions");
+  assert.match(deepseek.parameters.jsonBody, /deepseek-chat/);
+  assert.match(deepseek.parameters.jsonBody, /temperature:0\.2/);
+  assert.match(deepseek.parameters.jsonBody, /max_tokens:280/);
+  assert.match(deepseek.parameters.jsonBody, /Use ONLY numbers that appear in the BRIEF JSON/);
+  assert.ok(workflow.connections["DeepSeek Insight Narrative"].main[0]
+    .some((connection) => connection.node === "Validate and Apply Insight"));
+  assert.ok(workflow.connections["DeepSeek Insight Narrative"].main[1]
+    .some((connection) => connection.node === "Validate and Apply Insight"));
+  assert.ok(workflow.connections["Build Reports Row"].main[0]
+    .some((connection) => connection.node === "Build Insight Brief"));
+  assert.ok(workflow.connections["Build Insight Brief"].main[0]
+    .some((connection) => connection.node === "Insight LLM Eligible?"));
+  assert.ok(workflow.connections["Insight LLM Eligible?"].main[1]
+    .some((connection) => connection.node === "Validate and Apply Insight"));
+  const eligibility = workflow.nodes.find((node) => node.name === "Insight LLM Eligible?")
+    .parameters.conditions.conditions[0].leftValue;
+  assert.match(eligibility, /no_comparison/);
+  assert.match(eligibility, /_current/);
+  assert.match(eligibility, /_previous/);
+  assert.ok(workflow.connections["Render HTML + Text Report"].main[0]
+    .some((connection) => connection.node === "Check Reports Tab"));
+  assert.ok(workflow.connections["Append Reports Row"].main[0]
+    .some((connection) => connection.node === "Restore Rendered Report"));
+  assert.ok(workflow.connections["Restore Rendered Report"].main[0]
+    .some((connection) => connection.node === "Prepare Delivery"));
 });
 
 test("delivery workflow embeds its pure helper and gates both channels", async () => {
@@ -143,7 +184,7 @@ test("delivery workflow embeds its pure helper and gates both channels", async (
   for (const name of ["Gmail Enabled?", "Telegram Enabled?", "Send Failure Alert"]) {
     assert.ok(workflow.nodes.some((node) => node.name === name), `${name} is required`);
   }
-  assert.ok(workflow.connections["Render HTML + Text Report"].main[0]
+  assert.ok(workflow.connections["Restore Rendered Report"].main[0]
     .some((connection) => connection.node === "Prepare Delivery"));
   assert.ok(workflow.connections["Send Gmail Report"].main[0]
     .some((connection) => connection.node === "Restore Delivery After Gmail"));
