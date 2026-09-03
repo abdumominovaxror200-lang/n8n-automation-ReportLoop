@@ -54,3 +54,22 @@ test('brief handles missing Meta and flags zero previous values', () => {
   assert.equal(zero.flags[0].previous, '0');
   assert.ok(zero.facts.includes('0'));
 });
+
+test('efficiency evidence is included and its numbers join the fact allowlist', () => {
+  const brief = buildInsightBrief({
+    period_label: 'Current vs previous',
+    spend_current: 1200,
+    spend_previous: 1000,
+    spend_delta_pct: 0.2,
+    efficiency: {
+      wasted: [{ campaign_name: 'Dormant', spend: 275 }],
+      wasted_total: 275,
+      cpl_trend: { from: 20, to: 30, delta_pct: 0.5, projected_annual_extra: 3600 },
+      pacing: { spent_pct: 0.78, month_elapsed_pct: 0.4, projected_month_end_spend: 1950, projected_overspend: 950 },
+    },
+  });
+  assert.equal(brief.efficiency.wasted_total, 275);
+  for (const fact of ['275', '$275', '20', '$20', '30', '$30', '0.5', '50.0%', '3600', '$3,600', '0.78', '78.0%', '0.4', '40.0%', '1950', '$1,950', '950', '$950']) {
+    assert.ok(brief.facts.includes(fact), `facts must include ${fact}`);
+  }
+});

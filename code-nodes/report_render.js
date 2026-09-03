@@ -108,6 +108,39 @@ function whatChanged(metrics) {
   return `${lead.label} ${verb} by ${formatDelta(Math.abs(lead.numericDelta))} versus the previous period.`;
 }
 
+function formatCurrency(value) {
+  const number = finiteOrNull(value);
+  return number === null ? 'n/a' : `$${formatNumber(number)}`;
+}
+
+function formatPercent(value) {
+  const number = finiteOrNull(value);
+  return number === null ? 'n/a' : `${(number * 100).toFixed(1)}%`;
+}
+
+function efficiencyLines(efficiency) {
+  if (!efficiency || typeof efficiency !== 'object') return [];
+  const lines = [];
+  if (Array.isArray(efficiency.wasted) && efficiency.wasted.length) {
+    const names = efficiency.wasted
+      .map((campaign) => safeText(campaign.campaign_name, 'Unnamed campaign'));
+    lines.push(`Wasted spend: ${formatCurrency(efficiency.wasted_total)} — ${names.join(', ')}`);
+  }
+  if (efficiency.cpl_trend) {
+    lines.push(`Cost per lead ${formatDelta(efficiency.cpl_trend.delta_pct)} → approximately ${formatCurrency(efficiency.cpl_trend.projected_annual_extra)} additional per year`);
+  }
+  if (efficiency.pacing) {
+    const spent = formatPercent(efficiency.pacing.spent_pct);
+    const elapsed = formatPercent(efficiency.pacing.month_elapsed_pct);
+    const overspend = finiteOrNull(efficiency.pacing.projected_overspend);
+    const suffix = overspend !== null && overspend > 0
+      ? ` → approximately ${formatCurrency(overspend)} overspend risk`
+      : ' → on or below budget pace';
+    lines.push(`Budget: ${elapsed} elapsed, ${spent} spent${suffix}`);
+  }
+  return lines;
+}
+
 function renderReport(row, client = {}) {
   if (!row || typeof row !== 'object' || Array.isArray(row)) throw new TypeError('Report row must be an object.');
   const agency = safeText(client.agency, 'Agency');
@@ -120,6 +153,7 @@ function renderReport(row, client = {}) {
   const changed = safeText(row.insight_summary, whatChanged(metrics));
   const recommendations = (Array.isArray(row.recommendations) ? row.recommendations : [])
     .map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 3);
+  const efficiency = efficiencyLines(row.efficiency);
   const subject = `${agency} — ${reportName} — ${periodLabel}`;
 
   const tableRows = metrics.map((metric) => {
@@ -132,8 +166,11 @@ function renderReport(row, client = {}) {
   const recommendationsHtml = recommendations.length
     ? `<h2 style="font-size:16px;margin:24px 0 8px">Recommendations</h2><ul style="margin:0;padding-left:20px">${recommendations.map((item) => `<li style="margin:6px 0">${escapeHtml(item)}</li>`).join('')}</ul>`
     : '';
+  const efficiencyHtml = efficiency.length
+    ? `<h2 style="font-size:16px;margin:24px 0 8px">Efficiency Check</h2><ul style="margin:0;padding-left:20px">${efficiency.map((item) => `<li style="margin:6px 0">${escapeHtml(item)}</li>`).join('')}</ul>`
+    : '';
   const logoHtml = logo ? `<img src="${escapeHtml(logo)}" alt="${escapeHtml(agency)} logo" style="display:block;max-height:48px;max-width:180px;margin-bottom:16px">` : '';
-  const html = `<!doctype html><html><body style="margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif"><div style="max-width:720px;margin:0 auto;padding:24px"><div style="background:#ffffff;border-top:6px solid ${accent};padding:28px;border-radius:8px">${logoHtml}<h1 style="margin:0 0 6px;font-size:24px">${escapeHtml(reportName)}</h1><p style="margin:0 0 24px;color:#475569">${escapeHtml(agency)} · ${escapeHtml(periodLabel)}</p><table role="presentation" style="width:100%;border-collapse:collapse"><thead><tr style="background:${accent};color:#ffffff"><th style="padding:10px;text-align:left">KPI</th><th style="padding:10px;text-align:right">Current</th><th style="padding:10px;text-align:right">Previous</th><th style="padding:10px;text-align:right">Δ</th></tr></thead><tbody>${tableRows}</tbody></table><h2 style="font-size:16px;margin:24px 0 8px">What changed</h2><p style="margin:0">${escapeHtml(changed)}</p>${recommendationsHtml}${notesHtml}</div></div></body></html>`;
+  const html = `<!doctype html><html><body style="margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif"><div style="max-width:720px;margin:0 auto;padding:24px"><div style="background:#ffffff;border-top:6px solid ${accent};padding:28px;border-radius:8px">${logoHtml}<h1 style="margin:0 0 6px;font-size:24px">${escapeHtml(reportName)}</h1><p style="margin:0 0 24px;color:#475569">${escapeHtml(agency)} · ${escapeHtml(periodLabel)}</p><table role="presentation" style="width:100%;border-collapse:collapse"><thead><tr style="background:${accent};color:#ffffff"><th style="padding:10px;text-align:left">KPI</th><th style="padding:10px;text-align:right">Current</th><th style="padding:10px;text-align:right">Previous</th><th style="padding:10px;text-align:right">Δ</th></tr></thead><tbody>${tableRows}</tbody></table><h2 style="font-size:16px;margin:24px 0 8px">What changed</h2><p style="margin:0">${escapeHtml(changed)}</p>${efficiencyHtml}${recommendationsHtml}${notesHtml}</div></div></body></html>`;
 
   const textMetrics = metrics.map((metric) => {
     const trend = direction(metric.delta);
@@ -145,6 +182,7 @@ function renderReport(row, client = {}) {
     ...textMetrics,
     '',
     `What changed: ${changed}`,
+    ...(efficiency.length ? ['', 'Efficiency Check:', ...efficiency.map((item) => `- ${item}`)] : []),
     ...(recommendations.length ? ['', 'Recommendations:', ...recommendations.map((item) => `- ${item}`)] : []),
     ...(notes.length ? ['', 'Data notes:', ...notes.map((note) => `- ${note}`)] : []),
   ].join('\n');

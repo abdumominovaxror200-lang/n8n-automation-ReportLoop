@@ -27,6 +27,13 @@
     "brand_color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
     "slides_template_id": { "type": "string", "minLength": 1, "maxLength": 200 },
     "timezone": { "type": "string", "format": "iana-timezone" },
+    "monthly_budget": {
+      "description": "Optional monthly paid-media budget; use an empty string to disable pacing.",
+      "oneOf": [
+        { "type": "number", "minimum": 0 },
+        { "type": "string", "pattern": "^\\s*$" }
+      ]
+    },
     "enabled": { "type": "boolean" }
   }
 }

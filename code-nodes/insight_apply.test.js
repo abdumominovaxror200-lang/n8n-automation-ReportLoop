@@ -31,6 +31,13 @@ test('any invented numeric token rejects the entire narrative', () => {
   assert.doesNotMatch(result.insight_summary, /777/);
 });
 
+test('JSON punctuation is not treated as part of an allowed number token', () => {
+  const result = applyInsight('Spend moved from $1,000 to $1,200.', {
+    movers: [], flags: [], facts: ['$1,000', '$1,200'],
+  });
+  assert.equal(result.insight_source, 'llm');
+});
+
 test('null, empty, and failed provider responses use deterministic fallback', () => {
   assert.deepEqual(applyInsight(null, brief), deterministicInsight(brief));
   assert.deepEqual(applyInsight({}, brief), deterministicInsight(brief));

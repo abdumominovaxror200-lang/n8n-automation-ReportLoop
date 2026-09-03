@@ -93,9 +93,40 @@ test("optional Meta branch embeds its mapper and joins the shared KPI input", as
   assert.ok(workflow.connections["Meta Account Configured?"].main[1]
     .some((connection) => connection.node === "Meta Not Configured"));
   assert.ok(workflow.connections["Map Meta Insights"].main[0]
+    .some((connection) => connection.node === "Meta Ads - Campaign Insights"));
+  assert.ok(workflow.connections["Attach Meta Campaigns"].main[0]
     .some((connection) => connection.node === "Merge All Sources" && connection.index === 1));
   assert.ok(workflow.connections["Meta Not Configured"].main[0]
     .some((connection) => connection.node === "Merge All Sources" && connection.index === 1));
+});
+
+test("campaign-level Meta data feeds the deterministic efficiency check", async () => {
+  const [rawWorkflow, rawEfficiency] = await Promise.all([
+    readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8"),
+    readFile(new URL("../code-nodes/efficiency_check.js", import.meta.url), "utf8"),
+  ]);
+  const workflow = JSON.parse(rawWorkflow);
+  const normalizeLines = (value) => value.replace(/\r\n/g, "\n").trim();
+  const request = workflow.nodes.find((node) => node.name === "Meta Ads - Campaign Insights");
+  assert.ok(request);
+  const query = Object.fromEntries(request.parameters.queryParameters.parameters
+    .map(({ name, value }) => [name, value]));
+  assert.equal(query.level, "campaign");
+  assert.match(query.fields, /campaign_name/);
+  assert.match(query.time_range, /period\.current\.start/);
+  assert.match(query.time_range, /period\.current\.end/);
+  assert.equal(Object.hasOwn(request, 'credentials'), false);
+
+  const efficiency = workflow.nodes.find((node) => node.name === "Calculate Efficiency Check");
+  assert.equal(normalizeLines(efficiency.parameters.jsCode), normalizeLines(rawEfficiency));
+  assert.match(
+    workflow.nodes.find((node) => node.name === "Assemble KPI Sources").parameters.jsCode,
+    /meta_campaigns:sources\.meta_campaigns\?\?null/,
+  );
+  assert.ok(workflow.connections["Build Reports Row"].main[0]
+    .some((connection) => connection.node === "Calculate Efficiency Check"));
+  assert.ok(workflow.connections["Calculate Efficiency Check"].main[0]
+    .some((connection) => connection.node === "Build Insight Brief"));
 });
 
 test("report workflow embeds the deterministic renderer after validated insight", async () => {
@@ -140,7 +171,7 @@ test("insight stage embeds deterministic guards around the optional DeepSeek cal
     .some((connection) => connection.node === "Validate and Apply Insight"));
   assert.ok(workflow.connections["DeepSeek Insight Narrative"].main[1]
     .some((connection) => connection.node === "Validate and Apply Insight"));
-  assert.ok(workflow.connections["Build Reports Row"].main[0]
+  assert.ok(workflow.connections["Calculate Efficiency Check"].main[0]
     .some((connection) => connection.node === "Build Insight Brief"));
   assert.ok(workflow.connections["Build Insight Brief"].main[0]
     .some((connection) => connection.node === "Insight LLM Eligible?"));

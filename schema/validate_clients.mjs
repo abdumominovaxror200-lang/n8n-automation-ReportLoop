@@ -82,6 +82,10 @@ function validateRow(input, schema, rowNumber) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return { errors: [`row ${rowNumber}: must be an object`], normalized: input };
   const normalized = { ...input };
   if (Object.hasOwn(normalized, "enabled")) normalized.enabled = normalizeBoolean(normalized.enabled);
+  if (typeof normalized.monthly_budget === "string" && normalized.monthly_budget.trim() !== ""
+      && /^\d+(?:\.\d+)?$/.test(normalized.monthly_budget.trim())) {
+    normalized.monthly_budget = Number(normalized.monthly_budget);
+  }
   const allowed = new Set(Object.keys(schema.properties));
   for (const key of Object.keys(normalized)) if (!allowed.has(key)) errors.push(`row ${rowNumber}.${key}: unknown column`);
   for (const key of schema.required) if (!Object.hasOwn(normalized, key)) errors.push(`row ${rowNumber}.${key}: required column is missing`);
@@ -89,6 +93,16 @@ function validateRow(input, schema, rowNumber) {
   for (const [key, rule] of Object.entries(schema.properties)) {
     if (!Object.hasOwn(normalized, key)) continue;
     const value = normalized[key];
+    if (rule.oneOf) {
+      const matches = rule.oneOf.some((option) => {
+        if (typeof value !== option.type) return false;
+        if (option.minimum !== undefined && value < option.minimum) return false;
+        if (option.pattern && !new RegExp(option.pattern).test(value)) return false;
+        return true;
+      });
+      if (!matches) errors.push(`row ${rowNumber}.${key}: must be a non-negative number or empty`);
+      continue;
+    }
     if (typeof value !== rule.type) { errors.push(`row ${rowNumber}.${key}: expected ${rule.type}`); continue; }
     if (rule.type !== "string") continue;
     if (rule.minLength !== undefined && value.trim().length < rule.minLength) errors.push(`row ${rowNumber}.${key}: must not be empty`);

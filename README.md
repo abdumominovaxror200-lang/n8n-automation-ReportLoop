@@ -189,3 +189,25 @@ the workflow JSON. If DeepSeek is skipped, fails, returns no content, or introdu
 brief allowlist, the entire generated narrative is rejected and a deterministic local fallback is
 rendered instead. The output field `insight_source` is `llm` or `fallback` for monitoring. The
 workflow therefore remains functional without an LLM connection.
+
+## Prompt #7 — Efficiency Check
+
+The Meta branch now makes a second, current-period request at campaign level. **Meta Ads -
+Campaign Insights** requests campaign name, spend, delivery, and conversion action fields. After
+workflow import, select the same **Facebook Graph API** credential used by the account-level Meta
+node; no credential is embedded in the workflow JSON.
+
+`code-nodes/efficiency_check.js` deterministically adds three optional checks before the insight
+brief and report renderer:
+
+- campaigns with at least `$200` spend and zero recorded lead/purchase conversions;
+- account CPL deterioration above 30%, including an annualized extra-cost projection;
+- budget pacing when the optional `monthly_budget` Clients value is a non-negative number.
+
+The `$200` threshold is the local `DEFAULT_WASTE_MIN_SPEND` constant and can be overridden through
+the helper's `waste_min_spend` input. The current workflow uses its complete 30-day reporting cycle
+for pacing. Leave `monthly_budget` blank to skip pacing. If Meta is not configured, every efficiency
+result is `null` and the Efficiency Check section is omitted from HTML and Telegram output.
+
+Efficiency values are copied into the DeepSeek brief and its number allowlist; DeepSeek still does
+not calculate them. Run `npm test` for the offline calculation, renderer, schema, and workflow tests.

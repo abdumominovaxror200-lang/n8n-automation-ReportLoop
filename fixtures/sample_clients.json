@@ -15,6 +15,7 @@
     "brand_color": "#2563EB",
     "slides_template_id": "demo-template-1",
     "timezone": "Asia/Tashkent",
+    "monthly_budget": 5000,
     "enabled": true
   },
   {
@@ -33,6 +34,7 @@
     "brand_color": "#7C3AED",
     "slides_template_id": "demo-template-2",
     "timezone": "Europe/London",
+    "monthly_budget": "",
     "enabled": false
   }
 ]

@@ -1,6 +1,6 @@
 'use strict';
 
-const NUMBER_TOKEN = /\$?\d[\d,]*(?:\.\d+)?%?/g;
+const NUMBER_TOKEN = /\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?/g;
 const CURRENCY_METRICS = new Set(['spend', 'cpl', 'cpc', 'revenue']);
 const META_METRICS = ['spend', 'cpl', 'roas', 'ctr', 'leads', 'impressions', 'clicks'];
 
@@ -58,6 +58,30 @@ function metric(row, key) {
   };
 }
 
+function efficiencyFactStrings(efficiency) {
+  if (!efficiency || typeof efficiency !== 'object') return [];
+  const facts = [];
+  const currency = (value) => {
+    const number = finite(value);
+    if (number !== null) facts.push(`$${valueText(number)}`);
+  };
+  const percent = (value) => {
+    const number = finite(value);
+    if (number !== null) facts.push(`${Math.abs(number * 100).toFixed(1)}%`);
+  };
+  for (const campaign of Array.isArray(efficiency.wasted) ? efficiency.wasted : []) currency(campaign.spend);
+  currency(efficiency.wasted_total);
+  currency(efficiency.cpl_trend?.from);
+  currency(efficiency.cpl_trend?.to);
+  percent(efficiency.cpl_trend?.delta_pct);
+  currency(efficiency.cpl_trend?.projected_annual_extra);
+  percent(efficiency.pacing?.spent_pct);
+  percent(efficiency.pacing?.month_elapsed_pct);
+  currency(efficiency.pacing?.projected_month_end_spend);
+  currency(efficiency.pacing?.projected_overspend);
+  return facts;
+}
+
 function buildInsightBrief(row) {
   if (!row || typeof row !== 'object' || Array.isArray(row)) throw new TypeError('Reports row must be an object.');
   const metrics = Object.keys(row)
@@ -82,7 +106,7 @@ function buildInsightBrief(row) {
   const flags = [];
   if (byKey.cpl?.delta > 0.20) flags.push({ code: 'cpl_up', message: 'Cost per lead rose materially.' });
   if (byKey.conversions?.delta < -0.15) flags.push({ code: 'conversions_down', message: 'Conversions fell materially.' });
-  if (byKey.spend?.delta > 0.15 && byKey.leads?.delta !== null && Math.abs(byKey.leads.delta) < 0.05) {
+  if (byKey.spend?.delta > 0.15 && byKey.leads?.delta != null && Math.abs(byKey.leads.delta) < 0.05) {
     flags.push({ code: 'spend_up_leads_flat', message: 'Spend rose materially while leads were nearly flat.' });
   }
   if (byKey.sessions?.delta < -0.25) flags.push({ code: 'sessions_down', message: 'Sessions fell materially.' });
@@ -104,8 +128,14 @@ function buildInsightBrief(row) {
     flags,
     data_quality: dataQuality,
     has_meta: hasMeta,
+    efficiency: row.efficiency && typeof row.efficiency === 'object'
+      ? row.efficiency
+      : { wasted: null, wasted_total: null, cpl_trend: null, pacing: null },
   };
-  brief.facts = [...new Set(JSON.stringify(brief).match(NUMBER_TOKEN) ?? [])].sort();
+  brief.facts = [...new Set([
+    ...(JSON.stringify(brief).match(NUMBER_TOKEN) ?? []),
+    ...efficiencyFactStrings(brief.efficiency),
+  ])].sort();
   return brief;
 }
 

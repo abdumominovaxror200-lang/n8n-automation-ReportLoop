@@ -1,7 +1,7 @@
 'use strict';
 
 const MAX_NARRATIVE_LENGTH = 600;
-const NUMBER_TOKEN = /\$?\d[\d,]*(?:\.\d+)?%?/g;
+const NUMBER_TOKEN = /\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?/g;
 
 function deterministicInsight(brief) {
   const movers = Array.isArray(brief?.movers) ? brief.movers : [];

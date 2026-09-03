@@ -99,3 +99,23 @@ test('validated insight and recommendations replace only the narrative sections'
   assert.match(report.text, /Recommendations:\n- Review acquisition mix/);
   assert.doesNotMatch(report.html, /Sessions increased by/);
 });
+
+test('efficiency check appears in HTML and Telegram text only when populated', () => {
+  const withEfficiency = renderReport({
+    ...row,
+    efficiency: {
+      wasted: [{ campaign_name: 'Dormant Campaign', spend: 250 }],
+      wasted_total: 250,
+      cpl_trend: { delta_pct: 0.5, projected_annual_extra: 3600 },
+      pacing: { spent_pct: 0.78, month_elapsed_pct: 0.4, projected_overspend: 950 },
+    },
+  }, client);
+  for (const expected of ['Efficiency Check', 'Wasted spend: $250', 'Dormant Campaign', '+50.0%', '$3,600', '40.0% elapsed', '78.0% spent', '$950']) {
+    assert.ok(withEfficiency.html.includes(expected), `HTML must contain ${expected}`);
+    assert.ok(withEfficiency.text.includes(expected), `text must contain ${expected}`);
+  }
+
+  const withoutEfficiency = renderReport({ ...row, efficiency: null }, client);
+  assert.doesNotMatch(withoutEfficiency.html, /Efficiency Check/);
+  assert.doesNotMatch(withoutEfficiency.text, /Efficiency Check/);
+});
