@@ -1,0 +1,71 @@
+{
+  "data": [
+    {
+      "date_start": "2026-07-01",
+      "date_stop": "2026-07-01",
+      "spend": "100.00",
+      "impressions": "10000",
+      "clicks": "250",
+      "ctr": "2.5",
+      "cpc": "0.4",
+      "actions": [
+        { "action_type": "lead", "value": "10" },
+        { "action_type": "purchase", "value": "2" }
+      ],
+      "action_values": [
+        { "action_type": "purchase", "value": "300.00" }
+      ]
+    },
+    {
+      "date_start": "2026-07-02",
+      "date_stop": "2026-07-02",
+      "spend": "120.00",
+      "impressions": "12000",
+      "clicks": "300",
+      "ctr": "2.5",
+      "cpc": "0.4",
+      "actions": [
+        { "action_type": "lead", "value": "12" },
+        { "action_type": "offsite_conversion.fc_purchase", "value": "3" }
+      ],
+      "action_values": [
+        { "action_type": "offsite_conversion.fc_purchase", "value": "450.00" }
+      ]
+    },
+    {
+      "date_start": "2026-08-01",
+      "date_stop": "2026-08-01",
+      "spend": "150.00",
+      "impressions": "15000",
+      "clicks": "450",
+      "ctr": "3.0",
+      "cpc": "0.333333",
+      "actions": [
+        { "action_type": "lead", "value": "15" },
+        { "action_type": "purchase", "value": "4" }
+      ],
+      "action_values": [
+        { "action_type": "purchase", "value": "700.00" }
+      ]
+    },
+    {
+      "date_start": "2026-08-02",
+      "date_stop": "2026-08-02",
+      "spend": "170.00",
+      "impressions": "17000",
+      "clicks": "510",
+      "ctr": "3.0",
+      "cpc": "0.333333",
+      "actions": [
+        { "action_type": "lead", "value": "17" },
+        { "action_type": "offsite_conversion.fc_purchase", "value": "5" }
+      ],
+      "action_values": [
+        { "action_type": "offsite_conversion.fc_purchase", "value": "900.00" }
+      ]
+    }
+  ],
+  "paging": {
+    "cursors": { "before": "fixture-before", "after": "fixture-after" }
+  }
+}

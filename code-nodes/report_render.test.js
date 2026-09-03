@@ -59,3 +59,30 @@ test('invalid optional branding and malformed notes fall back without leaking un
   assert.match(report.html, /&lt;Agency&gt;/);
   assert.match(report.text, /plain note/);
 });
+
+test('available Meta KPIs are added while unavailable Meta rows stay hidden', () => {
+  const withMeta = renderReport({
+    ...row,
+    spend_current: 320,
+    spend_previous: 220,
+    spend_delta_pct: 100 / 220,
+    cpl_current: 10,
+    cpl_previous: 10,
+    cpl_delta_pct: 0,
+    roas_current: 5,
+    roas_previous: 750 / 220,
+    roas_delta_pct: (5 - 750 / 220) / (750 / 220),
+    ctr_current: 0.03,
+    ctr_previous: 0.025,
+    ctr_delta_pct: 0.2,
+  }, client);
+  for (const label of ['Spend', 'Cpl', 'Roas', 'Ctr']) assert.match(withMeta.html, new RegExp(`>${label}<`));
+
+  const withoutMeta = renderReport({
+    ...row,
+    spend_current: null,
+    spend_previous: null,
+    spend_delta_pct: null,
+  }, client);
+  assert.doesNotMatch(withoutMeta.html, />Spend</);
+});

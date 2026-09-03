@@ -61,11 +61,18 @@ function labelFor(key) {
 }
 
 function metricRows(row) {
-  return Object.keys(row)
+  const available = Object.keys(row)
     .filter((key) => key.endsWith('_current'))
     .map((currentKey) => currentKey.slice(0, -'_current'.length))
-    .filter((key) => Object.hasOwn(row, `${key}_previous`))
-    .slice(0, 3)
+    .filter((key) => Object.hasOwn(row, `${key}_previous`));
+  const paidMedia = ['spend', 'cpl', 'roas', 'ctr'].filter((key) =>
+    available.includes(key) &&
+    (finiteOrNull(row[`${key}_current`]) !== null || finiteOrNull(row[`${key}_previous`]) !== null));
+  const keys = [
+    ...available.filter((key) => !paidMedia.includes(key)).slice(0, 3),
+    ...paidMedia,
+  ];
+  return keys
     .map((key) => ({
       key,
       label: labelFor(key),

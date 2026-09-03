@@ -55,6 +55,49 @@ test("GA4 slice embeds its mapper and requests the two explicit periods", async 
   }
 });
 
+test("optional Meta branch embeds its mapper and joins the shared KPI input", async () => {
+  const [rawWorkflow, rawMapper] = await Promise.all([
+    readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8"),
+    readFile(new URL("../code-nodes/meta_map.js", import.meta.url), "utf8"),
+  ]);
+  const workflow = JSON.parse(rawWorkflow);
+  const normalizeLines = (value) => value.replace(/\r\n/g, "\n").trim();
+  const mapper = workflow.nodes.find((node) => node.name === "Map Meta Insights");
+  assert.equal(normalizeLines(mapper.parameters.jsCode), normalizeLines(rawMapper));
+
+  const request = workflow.nodes.find((node) => node.name === "Meta Ads - Daily Insights");
+  assert.match(request.parameters.url, /graph\.facebook\.com\/v21\.0/);
+  const query = Object.fromEntries(request.parameters.queryParameters.parameters
+    .map(({ name, value }) => [name, value]));
+  assert.match(query.fields, /actions,action_values/);
+  assert.equal(query.level, "account");
+  assert.equal(query.time_increment, "1");
+  assert.match(query.time_range, /period\.previous\.start/);
+  assert.match(query.time_range, /period\.current\.end/);
+
+  for (const name of [
+    "Meta Account Configured?",
+    "Meta Not Configured",
+    "Select GA4 Source",
+    "Merge All Sources",
+    "Assemble KPI Sources",
+  ]) assert.ok(workflow.nodes.some((node) => node.name === name), `${name} is required`);
+  assert.match(
+    workflow.nodes.find((node) => node.name === "Assemble KPI Sources").parameters.jsCode,
+    /meta:sources\.meta\?\?null/,
+  );
+  assert.ok(workflow.connections["Assemble KPI Sources"].main[0]
+    .some((connection) => connection.node === "Calculate KPIs"));
+  assert.ok(workflow.connections["Meta Account Configured?"].main[0]
+    .some((connection) => connection.node === "Meta Ads - Daily Insights"));
+  assert.ok(workflow.connections["Meta Account Configured?"].main[1]
+    .some((connection) => connection.node === "Meta Not Configured"));
+  assert.ok(workflow.connections["Map Meta Insights"].main[0]
+    .some((connection) => connection.node === "Merge All Sources" && connection.index === 1));
+  assert.ok(workflow.connections["Meta Not Configured"].main[0]
+    .some((connection) => connection.node === "Merge All Sources" && connection.index === 1));
+});
+
 test("report workflow embeds the deterministic renderer after the sheet append", async () => {
   const [rawWorkflow, rawRenderer] = await Promise.all([
     readFile(new URL("../workflows/wf_build_report.json", import.meta.url), "utf8"),
@@ -141,9 +184,10 @@ test("GA4 slice creates Reports headers when needed and appends to the configure
   const append = workflow.nodes.find((node) => node.name === "Append Reports Row");
   assert.equal(append.parameters.documentId.value, "1vV9FLBLTwp05lwBfQRIrV8rrVe6K0IqPbh1obQiDNWI");
   assert.equal(append.parameters.sheetName.value, "Reports");
-  for (const todo of ["TODO: connect Meta", "TODO: connect Google Ads", "TODO: connect Slides Render"]) {
+  for (const todo of ["TODO: connect Google Ads", "TODO: connect Slides Render"]) {
     assert.equal(workflow.nodes.find((node) => node.name === todo)?.type, "n8n-nodes-base.noOp");
   }
+  assert.equal(workflow.nodes.some((node) => node.name === "TODO: connect Meta"), false);
   assert.equal(workflow.nodes.some((node) => node.name === "TODO: connect Gmail"), false);
   assert.equal(workflow.nodes.some((node) => node.name === "TODO: connect Telegram"), false);
 });

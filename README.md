@@ -158,3 +158,20 @@ After importing the workflow into n8n:
 No credential object is baked into the exported workflow. Failure outputs are routed to the
 single Telegram alert node. Its destination uses the current client’s `telegram_chat_id`; clients
 that need alerts must therefore provide a valid bot-accessible chat ID.
+
+## Prompt #5 — Meta Ads
+
+The build workflow can optionally pull daily account-level Meta Insights in parallel with GA4.
+When `meta_ad_account_id` is blank, the Meta branch returns `meta: null` and the existing GA4-only
+path continues unchanged. When configured, it maps spend, impressions, clicks, leads, purchases,
+and purchase value into the shared KPI core. Available paid-media KPIs (`spend`, `cpl`, `roas`,
+and `ctr`) are then included in the report; unavailable paid-media rows remain hidden.
+
+After workflow import, select a **Facebook Graph API** credential containing a suitable System
+User access token on **Meta Ads - Daily Insights**. Put the account ID in `meta_ad_account_id` in
+the Clients sheet or standalone Set node. The workflow accepts IDs with or without the `act_`
+prefix. No access token is stored in the exported JSON.
+
+Google Ads intentionally remains **TODO: connect Google Ads** because production reporting needs
+a reviewed developer token. See `docs/google-ads-setup.md` for the MCC, access-level, OAuth scope,
+and request-header checklist.
